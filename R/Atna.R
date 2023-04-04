@@ -2,19 +2,21 @@ library(tidyverse)
 library(fs)
 library(vroom)
 
+# AUU path \\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-21217\SE02\UploadData\AUU\083-IDR
+# \\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\Clinical Study Files\Sensor Systems\ADC-US-RES-16157_InHouse Sensor\CDM\RX Data\Sub-Study 076
 
-file_list <- dir_ls(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\Clinical Study Files\Sensor Systems\ADC-US-RES-16157_InHouse Sensor\CDM\RX Data\Sub-Study 076)"),recurse = T,glob = "*events.csv|*gluc.csv|*freestyle.csv")
+# 217 SE02
+# file_list <- dir_ls(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-21217\SE02\UploadData\AUU\083-IDR)"),recurse = T,glob = "*events.csv|*gluc.csv|*freestyle.csv")
+# events_path <- file_list[str_detect(file_list,"events") & str_detect(file_list,"FV") & !str_detect(file_list,regex("Archive",ignore_case = T)) &  !str_detect(file_list,regex("Transfers",ignore_case = T))]
+# gluc_path <- file_list[str_detect(file_list,"gluc") & str_detect(file_list,"FV") & !str_detect(file_list,regex("Archive",ignore_case = T)) &  !str_detect(file_list,regex("Transfers",ignore_case = T))]
 
-# 446 files
-events_path <- file_list[str_detect(file_list,"events") & !str_detect(file_list,regex("BGM",ignore_case = T)) &  !str_detect(file_list,regex("Interim",ignore_case = T))]
+# InHouse 076
+# file_list <- dir_ls(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\Clinical Study Files\Sensor Systems\ADC-US-RES-16157_InHouse Sensor\CDM\RX Data\Sub-Study 076)"),recurse = T,glob = "*events.csv|*gluc.csv|*freestyle.csv")
+# events_path <- file_list[str_detect(file_list,"events") & !str_detect(file_list,regex("BGM",ignore_case = T)) &  !str_detect(file_list,regex("Interim",ignore_case = T))]
+# gluc_path <- file_list[str_detect(file_list,"gluc") & !str_detect(file_list,regex("BGM",ignore_case = T)) &  !str_detect(file_list,regex("Interim",ignore_case = T))]
+# free_path <- file_list[str_detect(file_list,"freestyle") & str_detect(file_list,regex("BGM",ignore_case = T)) &  !str_detect(file_list,regex("Interim",ignore_case = T))]
 
-# 446 files
-gluc_path <- file_list[str_detect(file_list,"gluc") & !str_detect(file_list,regex("BGM",ignore_case = T)) &  !str_detect(file_list,regex("Interim",ignore_case = T))]
-
-# 110 files
-free_path <- file_list[str_detect(file_list,"freestyle") & str_detect(file_list,regex("BGM",ignore_case = T)) &  !str_detect(file_list,regex("Interim",ignore_case = T))]
-
-my_fun <- function(events, gluc, index = NULL, ...) {
+atna <- function(events, gluc, index = NULL, ...) {
 
   # Individual File
   if (is.numeric(index)) {
@@ -116,4 +118,4 @@ my_fun <- function(events, gluc, index = NULL, ...) {
   }
 }
 
-my_fun(events = events_path, gluc = gluc_path) |> View()
+# atna(events = events_path, gluc = gluc_path)
