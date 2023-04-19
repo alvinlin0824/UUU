@@ -1,15 +1,4 @@
-#' Import Atna csv upload data
-#'
-#' @param events file path of events.csv
-#' @param gluc   file path of gluc.csv
-#' @param index  index to get an individual upload
-#'
-#' @return A tibble
-#' @export
-#'
-#' @examples
-
-atna <- function(events, gluc, index = NULL, ...) {
+mobi <- function(events, gluc, index = NULL, ...) {
 
   # Individual File
   if (is.numeric(index)) {
@@ -21,8 +10,8 @@ atna <- function(events, gluc, index = NULL, ...) {
         map(possibly(\(path) vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(`Col 9` = "c"),col_select = c(Date,Time,Type,`Col 9`)),tibble()),.progress = TRUE) |>
         map(\(df) df |> filter(Type == "SENSOR_STARTED (58)")) |>
         map(\(df) df |> transmute(
-          `Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
-          Type = Type,
+          `Date Time` = ymd_hms(format(as.POSIXct(str_c(Date,Time,sep = " "),tz = "UTC"),tz="US/Pacific",format = "%Y-%m-%d:%H:%M:%S"),tz = "US/Pacific"),
+           Type = Type,
           `Sensor Serial Number` = `Col 9`
         )) |>
         # Replaced Sensors Only
@@ -50,15 +39,14 @@ atna <- function(events, gluc, index = NULL, ...) {
                                       .default = str_c(str_extract(df[1,1],regex("(?<=Site ID = 0).{2}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T)))
                                     ),
                                   `Condition ID` = str_extract(df[1,1],regex("(?<=Condition ID = ).{3}",ignore_case = T)),
-                                  `Reader ID` = str_extract(df[2,1],regex("(?<=Reader_S_N ).{13}",ignore_case = T)),
-                                  `Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
+                                  `Date Time` = ymd_hms(str_c(Date,Time,sep = " "),tz = "US/Pacific"),
                                   Type = Type,
                                   Gl = Gl)) |>
         map(\(df) df |> slice(3:n())),bind_rows) |>
-      map(\(df) df |> fill(c(`Subject ID`,`Condition ID`,`Reader ID`),.direction = "up")) |>
+      map(\(df) df |> fill(c(`Subject ID`,`Condition ID`),.direction = "up")) |>
       map(\(df) df |> fill(`Sensor Serial Number`,.direction = "down")) |>
       map(\(df) df |> relocate(`Subject ID`,`Condition ID`,`Sensor Serial Number`,
-                               `Reader ID`,`Date Time`,Type,Gl)) |>
+                               `Date Time`,Type,Gl)) |>
       list_rbind()
 
   } else {
@@ -72,8 +60,8 @@ atna <- function(events, gluc, index = NULL, ...) {
         map(possibly(\(path) vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(`Col 9` = "c"),col_select = c(Date,Time,Type,`Col 9`)),tibble()),.progress = TRUE) |>
         map(\(df) df |> filter(Type == "SENSOR_STARTED (58)")) |>
         map(\(df) df |> transmute(
-          `Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
-          Type = Type,
+          `Date Time` = ymd_hms(format(as.POSIXct(str_c(Date,Time,sep = " "),tz = "UTC"),tz="US/Pacific",format = "%Y-%m-%d:%H:%M:%S"),tz = "US/Pacific"),
+           Type = Type,
           `Sensor Serial Number` = `Col 9`
         )) |>
         # Replaced Sensors Only
@@ -101,15 +89,14 @@ atna <- function(events, gluc, index = NULL, ...) {
                                       .default = str_c(str_extract(df[1,1],regex("(?<=Site ID = 0).{2}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T)))
                                     ),
                                   `Condition ID` = str_extract(df[1,1],regex("(?<=Condition ID = ).{3}",ignore_case = T)),
-                                  `Reader ID` = str_extract(df[2,1],regex("(?<=Reader_S_N ).{13}",ignore_case = T)),
-                                  `Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
+                                  `Date Time` = ymd_hms(str_c(Date,Time,sep = " "),tz = "US/Pacific"),
                                   Type = Type,
                                   Gl = Gl)) |>
         map(\(df) df |> slice(3:n())),bind_rows) |>
-      map(\(df) df |> fill(c(`Subject ID`,`Condition ID`,`Reader ID`),.direction = "up")) |>
+      map(\(df) df |> fill(c(`Subject ID`,`Condition ID`),.direction = "up")) |>
       map(\(df) df |> fill(`Sensor Serial Number`,.direction = "down")) |>
       map(\(df) df |> relocate(`Subject ID`,`Condition ID`,`Sensor Serial Number`,
-                               `Reader ID`,`Date Time`,Type,Gl)) |>
+                               `Date Time`,Type,Gl)) |>
       list_rbind() |>
       # Remove Duplicated Uploads
       distinct() |>

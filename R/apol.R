@@ -1,15 +1,4 @@
-#' Import Atna csv upload data
-#'
-#' @param events file path of events.csv
-#' @param gluc   file path of gluc.csv
-#' @param index  index to get an individual upload
-#'
-#' @return A tibble
-#' @export
-#'
-#' @examples
-
-atna <- function(events, gluc, index = NULL, ...) {
+apol <- function(events, gluc, index = NULL, ...) {
 
   # Individual File
   if (is.numeric(index)) {
@@ -22,7 +11,7 @@ atna <- function(events, gluc, index = NULL, ...) {
         map(\(df) df |> filter(Type == "SENSOR_STARTED (58)")) |>
         map(\(df) df |> transmute(
           `Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
-          Type = Type,
+           Type = Type,
           `Sensor Serial Number` = `Col 9`
         )) |>
         # Replaced Sensors Only
@@ -50,7 +39,7 @@ atna <- function(events, gluc, index = NULL, ...) {
                                       .default = str_c(str_extract(df[1,1],regex("(?<=Site ID = 0).{2}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T)))
                                     ),
                                   `Condition ID` = str_extract(df[1,1],regex("(?<=Condition ID = ).{3}",ignore_case = T)),
-                                  `Reader ID` = str_extract(df[2,1],regex("(?<=Reader_S_N ).{13}",ignore_case = T)),
+                                  `Reader ID` = str_extract(df[2,1],regex("(?<=\\s).{13}",ignore_case = T)),
                                   `Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
                                   Type = Type,
                                   Gl = Gl)) |>
@@ -73,7 +62,7 @@ atna <- function(events, gluc, index = NULL, ...) {
         map(\(df) df |> filter(Type == "SENSOR_STARTED (58)")) |>
         map(\(df) df |> transmute(
           `Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
-          Type = Type,
+           Type = Type,
           `Sensor Serial Number` = `Col 9`
         )) |>
         # Replaced Sensors Only
@@ -101,7 +90,7 @@ atna <- function(events, gluc, index = NULL, ...) {
                                       .default = str_c(str_extract(df[1,1],regex("(?<=Site ID = 0).{2}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T)))
                                     ),
                                   `Condition ID` = str_extract(df[1,1],regex("(?<=Condition ID = ).{3}",ignore_case = T)),
-                                  `Reader ID` = str_extract(df[2,1],regex("(?<=Reader_S_N ).{13}",ignore_case = T)),
+                                  `Reader ID` = str_extract(df[2,1],regex("(?<=\\s).{13}",ignore_case = T)),
                                   `Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
                                   Type = Type,
                                   Gl = Gl)) |>
