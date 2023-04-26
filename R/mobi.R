@@ -1,3 +1,14 @@
+#' Import Mobi csv upload data
+#'
+#' @param events file path of events.csv
+#' @param gluc   file path of gluc.csv
+#' @param index  index to get an individual upload
+#'
+#' @return A tibble
+#' @export
+#'
+#' @examples
+
 mobi <- function(events, gluc, index = NULL, ...) {
 
   # Individual File
