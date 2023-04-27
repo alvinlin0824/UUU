@@ -39,7 +39,7 @@ atna <- function(events, gluc, index = NULL, ...) {
         map(\(df) df |> transmute(`Subject ID` =
                                     case_when(
                                       # Site ID == ADC
-                                      str_extract(df[1,1],regex("(?<=Site ID = ).{3}",ignore_case = T)) == "ADC" ~ str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T)),
+                                      str_to_upper(str_extract(df[1,1],regex("(?<=Site ID = ).{3}",ignore_case = T))) == "ADC" ~ str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T)),
                                       # Site ID == 009
                                       str_extract(df[1,1],regex("(?<=Site ID = ).{2}",ignore_case = T)) == "00" ~
                                         str_c(str_extract(df[1,1],regex("(?<=Site ID = 00).{1}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T))),
@@ -92,7 +92,7 @@ atna <- function(events, gluc, index = NULL, ...) {
         map(\(df) df |> transmute(`Subject ID` =
                                     case_when(
                                       # Site ID == ADC
-                                      str_extract(df[1,1],regex("(?<=Site ID = ).{3}",ignore_case = T)) == "ADC" ~ str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T)),
+                                      str_to_upper(str_extract(df[1,1],regex("(?<=Site ID = ).{3}",ignore_case = T))) == "ADC" ~ str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T)),
                                       # Site ID == 009
                                       str_extract(df[1,1],regex("(?<=Site ID = ).{2}",ignore_case = T)) == "00" ~
                                         str_c(str_extract(df[1,1],regex("(?<=Site ID = 00).{1}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T))),
