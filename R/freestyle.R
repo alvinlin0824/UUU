@@ -5,8 +5,7 @@
 #'
 #' @return A tibble
 #' @export
-#'
-#' @examples
+
 
 freestyle <- function(freestyle_path, index = NULL, ...) {
 

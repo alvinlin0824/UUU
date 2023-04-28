@@ -6,8 +6,7 @@
 #'
 #' @return A tibble
 #' @export
-#'
-#' @examples
+
 
 atna <- function(events, gluc, index = NULL, ...) {
 

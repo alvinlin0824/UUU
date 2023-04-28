@@ -6,8 +6,7 @@
 #'
 #' @return A tibble
 #' @export
-#'
-#' @examples
+
 
 apol <- function(events, gluc, index = NULL, ...) {
 

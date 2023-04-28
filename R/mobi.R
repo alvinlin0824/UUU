@@ -6,8 +6,7 @@
 #'
 #' @return A tibble
 #' @export
-#'
-#' @examples
+
 
 mobi <- function(events, gluc, index = NULL, ...) {
 
