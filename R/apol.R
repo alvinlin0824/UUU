@@ -2,13 +2,13 @@
 #'
 #' @param events file path of events.csv
 #' @param gluc   file path of gluc.csv
-#' @param index  index to get an individual upload
+#' @param index  index to get an individual or specific upload
 #'
 #' @return A tibble
 #' @export
 
 
-apol <- function(events, gluc, index = NULL, ...) {
+apol <- function(events, gluc, index = NULL) {
 
   # Individual File
   if (is.numeric(index)) {

@@ -1,13 +1,13 @@
 #' Import Freestyle csv upload data
 #'
 #' @param freestyle_path file path of freestyle.csv
-#' @param index  index to get an individual upload
+#' @param index  index to get an individual or specific upload
 #'
 #' @return A tibble
 #' @export
 
 
-freestyle <- function(freestyle_path, index = NULL, ...) {
+freestyle <- function(freestyle_path, index = NULL) {
 
   # Individual File
   if (is.numeric(index)) {
