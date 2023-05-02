@@ -22,10 +22,9 @@ apol <- function(events, gluc, index = NULL) {
         map(\(df) df |> transmute(
           `Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
            Type = Type,
-          `Sensor Serial Number` = `Col 9`
-        )) |>
+          `Sensor Serial Number` = `Col 9`)),
         # Replaced Sensors Only
-        map(\(df) df |> slice_max(`Date Time`,n = 1)),
+        # map(\(df) df |> slice_max(`Date Time`,n = 1)),
 
       map2(
         # Second List
@@ -56,6 +55,7 @@ apol <- function(events, gluc, index = NULL) {
                                    St = St,
                                    Tr = Tr)) |>
         map(\(df) df |> slice(3:n())),bind_rows) |>
+      map(\(df) df |>  arrange(`Date Time`)) |>
       map(\(df) df |> fill(c(`Subject ID`,`Condition ID`,`Reader ID`),.direction = "up")) |>
       map(\(df) df |> fill(`Sensor Serial Number`,.direction = "down")) |>
       map(\(df) df |> relocate(`Subject ID`,`Condition ID`,`Sensor Serial Number`,
@@ -75,10 +75,9 @@ apol <- function(events, gluc, index = NULL) {
         map(\(df) df |> transmute(
           `Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
            Type = Type,
-          `Sensor Serial Number` = `Col 9`
-        )) |>
+          `Sensor Serial Number` = `Col 9`)),
         # Replaced Sensors Only
-        map(\(df) df |> slice_max(`Date Time`,n = 1)),
+        # map(\(df) df |> slice_max(`Date Time`,n = 1)),
 
       map2(
         # Second List
@@ -109,6 +108,7 @@ apol <- function(events, gluc, index = NULL) {
                                    St = St,
                                    Tr = Tr)) |>
         map(\(df) df |> slice(3:n())),bind_rows) |>
+      map(\(df) df |> arrange(`Date Time`)) |>
       map(\(df) df |> fill(c(`Subject ID`,`Condition ID`,`Reader ID`),.direction = "up")) |>
       map(\(df) df |> fill(`Sensor Serial Number`,.direction = "down")) |>
       map(\(df) df |> relocate(`Subject ID`,`Condition ID`,`Sensor Serial Number`,
@@ -116,6 +116,6 @@ apol <- function(events, gluc, index = NULL) {
       list_rbind() |>
       # Remove Duplicated Uploads
       distinct() |>
-      arrange(`Subject ID`,`Condition ID`)
+      arrange(`Subject ID`,`Condition ID`,`Sensor Serial Number`,`Date Time`)
   }
 }
