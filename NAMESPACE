@@ -2,5 +2,6 @@
 
 export(apol)
 export(atna)
+export(events)
 export(freestyle)
 export(mobi)
