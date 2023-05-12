@@ -1,7 +1,7 @@
 #' Import Freestyle csv upload data
 #'
-#' @param freestyle_path file path of freestyle.csv
-#' @param index  index to get an individual or specific upload
+#' @param freestyle_path File path of freestyle.csv.
+#' @param index  Index to get an individual or specific upload. Default is NULL.
 #'
 #' @return A tibble
 #' @export

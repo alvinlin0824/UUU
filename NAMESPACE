@@ -3,5 +3,6 @@
 export(apol)
 export(atna)
 export(events)
+export(filter_path)
 export(freestyle)
 export(mobi)

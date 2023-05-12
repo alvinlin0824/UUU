@@ -4,6 +4,7 @@
 #' @param filter_text Match a fixed string that you would like to remove. Default is an empty string.
 #'
 #' @return A list
+#' @export
 
 filter_path <- function(file_path, filter_text = "^$|pattern"){
   events_path <- file_path[str_detect(file_path,"events") &
