@@ -1,7 +1,7 @@
 #' Import Events csv upload data
 #'
-#' @param events_path file path of events.csv
-#' @param index index to get an individual or specific upload
+#' @param events_path File path of events.csv.
+#' @param index Index to get an individual or specific upload. Default is NULL.
 #'
 #' @return A tibble
 #' @export

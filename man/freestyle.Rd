@@ -7,9 +7,9 @@
 freestyle(freestyle_path, index = NULL)
 }
 \arguments{
-\item{freestyle_path}{file path of freestyle.csv}
+\item{freestyle_path}{File path of freestyle.csv.}
 
-\item{index}{index to get an individual or specific upload}
+\item{index}{Index to get an individual or specific upload. Default is NULL.}
 }
 \value{
 A tibble

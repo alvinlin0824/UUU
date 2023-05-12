@@ -7,9 +7,9 @@
 events(events_path, index = NULL)
 }
 \arguments{
-\item{events_path}{file path of events.csv}
+\item{events_path}{File path of events.csv.}
 
-\item{index}{index to get an individual or specific upload}
+\item{index}{Index to get an individual or specific upload. Default is NULL.}
 }
 \value{
 A tibble

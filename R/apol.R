@@ -1,8 +1,8 @@
 #' Import Apol csv upload data
 #'
-#' @param events file path of events.csv
-#' @param gluc   file path of gluc.csv
-#' @param index  index to get an individual or specific upload
+#' @param events File path of events.csv.
+#' @param gluc   File path of gluc.csv.
+#' @param index  Index to get an individual or specific upload. Default is NULL.
 #'
 #' @return A tibble
 #' @export

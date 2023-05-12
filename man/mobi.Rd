@@ -7,11 +7,11 @@
 mobi(events, gluc, index = NULL)
 }
 \arguments{
-\item{events}{file path of events.csv}
+\item{events}{File path of events.csv.}
 
-\item{gluc}{file path of gluc.csv}
+\item{gluc}{File path of gluc.csv.}
 
-\item{index}{index to get an individual or specific upload}
+\item{index}{Index to get an individual or specific upload. Default is NULL.}
 }
 \value{
 A tibble
