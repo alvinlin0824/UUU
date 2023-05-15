@@ -17,7 +17,6 @@ filter_path <- function(file_path, filter_text = "^$|pattern"){
                                !str_detect(file_path,regex("Archive|Archives|Transfer|Transfers",ignore_case = T)) & !str_detect(file_path,regex(filter_text,ignore_case = T))]
 
   free_path <- file_path[str_detect(file_path,regex("freestyle",ignore_case = T)) &
-                           str_detect(file_path,regex("BGM",ignore_case = T)) &
                            !str_detect(file_path,regex("Archive|Archives|Transfer|Transfers",ignore_case = T)) & !str_detect(file_path,regex(filter_text,ignore_case = T))]
 
   out <- list(events_path, gluc_path, glucPlus_path, free_path)
