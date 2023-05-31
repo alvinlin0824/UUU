@@ -12,7 +12,7 @@ events <- function(events_path, index = NULL){
       map(possibly(\(path) vroom(path,delim = ",",
                                  col_names = T,
                                  show_col_types = F,
-                                 col_types = c(`Col 5` = "c"),
+                                 col_types = c(`Col 5` = "c",`Col 9` = "c"),
                                  col_select = c(`Unique Record ID`,Date,Time,Type,`Col 5`,`Col 9`)),
           tibble()),.progress = TRUE) |>
       map(\(df) df |>
@@ -54,7 +54,7 @@ events <- function(events_path, index = NULL){
         map(possibly(\(path) vroom(path,delim = ",",
                                    col_names = T,
                                    show_col_types = F,
-                                   col_types = c(`Col 5` = "c"),
+                                   col_types = c(`Col 5` = "c",`Col 9` = "c"),
                                    col_select = c(`Unique Record ID`,Date,Time,Type,`Col 5`,`Col 9`)),
                      tibble()),.progress = TRUE) |>
         map(\(df) df |>
