@@ -122,6 +122,6 @@ apol <- function(events, gluc, index = NULL) {
       list_rbind(names_to = "Path") |>
       # Remove Duplicated Uploads
       distinct() |>
-      arrange(`Subject ID`,`Condition ID`,`Sensor Serial Number`,`Date Time`)
+      arrange(Path,`Subject ID`,`Condition ID`,`Sensor Serial Number`)
   }
 }
