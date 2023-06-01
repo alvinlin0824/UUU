@@ -16,6 +16,7 @@ apol <- function(events, gluc, index = NULL) {
       # First List
       # Import Events
       events[index] |>
+        set_names() |>
         # Consider empty events.csv
         map(possibly(\(path) vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(`Col 9` = "c"),col_select = c(Date,Time,Type,`Col 9`)),tibble()),.progress = TRUE) |>
         map(\(df) df |> filter(Type == "SENSOR_STARTED (58)")) |>
@@ -62,7 +63,7 @@ apol <- function(events, gluc, index = NULL) {
       map(\(df) df |> fill(`Sensor Serial Number`,.direction = "down")) |>
       map(\(df) df |> relocate(`Subject ID`,`Condition ID`,`Sensor Serial Number`,
                                `Reader ID`,`Date Time`,Type,Gl,St,Tr)) |>
-      list_rbind()
+      list_rbind(names_to = "Path")
 
   } else {
 
@@ -71,6 +72,7 @@ apol <- function(events, gluc, index = NULL) {
       # First List
       # Import Events
       events |>
+        set_names() |>
         # Consider empty events.csv
         map(possibly(\(path) vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(`Col 9` = "c"),col_select = c(Date,Time,Type,`Col 9`)),tibble()),.progress = TRUE) |>
         map(\(df) df |> filter(Type == "SENSOR_STARTED (58)")) |>
@@ -117,7 +119,7 @@ apol <- function(events, gluc, index = NULL) {
       map(\(df) df |> fill(`Sensor Serial Number`,.direction = "down")) |>
       map(\(df) df |> relocate(`Subject ID`,`Condition ID`,`Sensor Serial Number`,
                                `Reader ID`,`Date Time`,Type,Gl,St,Tr)) |>
-      list_rbind() |>
+      list_rbind(names_to = "Path") |>
       # Remove Duplicated Uploads
       distinct() |>
       arrange(`Subject ID`,`Condition ID`,`Sensor Serial Number`,`Date Time`)
