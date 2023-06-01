@@ -25,7 +25,9 @@ freestyle <- function(freestyle_path, index = NULL) {
                         str_extract(df[1,1],regex("(?<=Site ID = ).{1}",ignore_case = T)) == "1" ~
                           str_c(str_extract(df[1,1],regex("(?<=Site ID = ).{3}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T))),
                         # Site ID == 081
-                        .default = str_c(str_extract(df[1,1],regex("(?<=Site ID = 0).{2}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T)))
+                        str_extract(df[1,1],regex("(?<=Site ID = ).{2}",ignore_case = T)) == "08" ~ str_c(str_extract(df[1,1],regex("(?<=Site ID = 0).{2}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                        # Site ID mislabeled
+                        .default = str_c(str_extract(df[1,1],regex("(?<=Site ID = )[:alpha:]+",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = )[:digit:]+",ignore_case = T)))
                       ),
         `BG Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
          Reference = `FreeStyle Reading`,
@@ -60,7 +62,9 @@ freestyle <- function(freestyle_path, index = NULL) {
                           str_extract(df[1,1],regex("(?<=Site ID = ).{1}",ignore_case = T)) == "1" ~
                             str_c(str_extract(df[1,1],regex("(?<=Site ID = ).{3}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T))),
                           # Site ID == 081
-                          .default = str_c(str_extract(df[1,1],regex("(?<=Site ID = 0).{2}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T)))
+                          str_extract(df[1,1],regex("(?<=Site ID = ).{2}",ignore_case = T)) == "08" ~ str_c(str_extract(df[1,1],regex("(?<=Site ID = 0).{2}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                          # Site ID mislabeled
+                          .default = str_c(str_extract(df[1,1],regex("(?<=Site ID = )[:alpha:]+",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = )[:digit:]+",ignore_case = T)))
                         ),
                       `BG Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
                       Reference = `FreeStyle Reading`,
