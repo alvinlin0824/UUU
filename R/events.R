@@ -35,7 +35,7 @@ events <- function(events_path, index = NULL){
                       `Reader ID` = str_extract(df[2,1],regex("(?<=\\s).{13}",ignore_case = T)),
                       `Sensor Serial Number` = `Col 5`,
                       `Col 9` = `Col 9`,
-                      `Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
+                      `Event Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
                        Type = Type)) |>
         list_rbind() |>
       # Remove Duplicated
@@ -48,7 +48,7 @@ events <- function(events_path, index = NULL){
                `Sensor Serial Number` = case_when(
                           str_detect(`Sensor Serial Number`,"[:alpha:]") ~ `Sensor Serial Number`,
                           .default = `Col 9`)) |>
-        fill(`Sensor Serial Number`,.direction = "up") |>
+        fill(`Sensor Serial Number`,.direction = "updown") |>
         select(!`Col 9`) |>
         arrange(`Subject ID`,`Condition ID`)
     } else {
@@ -79,20 +79,21 @@ events <- function(events_path, index = NULL){
                         `Reader ID` = str_extract(df[2,1],regex("(?<=\\s).{13}",ignore_case = T)),
                         `Sensor Serial Number` = `Col 5`,
                         `Col 9` = `Col 9`,
-                        `Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
+                        `Event Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
                          Type = Type)) |>
-        list_rbind() |>
-        # Remove Duplicated
-        distinct() |>
         # Remove Type is NA
-        filter(!is.na(Type)) |>
-        mutate(`Col 9` = case_when(str_detect(`Col 9`,"[:alpha:]") ~ `Col 9`,
-                                   .default = NA_character_),
-               `Sensor Serial Number` = case_when(
-                 str_detect(`Sensor Serial Number`,"[:alpha:]") ~ `Sensor Serial Number`,
-                 .default = `Col 9`)) |>
-        fill(`Sensor Serial Number`,.direction = "up") |>
+        map(\(df) df |> filter(!is.na(Type))) |>
+        map(\(df) df |> mutate(`Col 9` = case_when(str_detect(`Col 9`,"[:alpha:]") ~ `Col 9`,
+                                                   .default = NA_character_),
+                               `Sensor Serial Number` = case_when(
+                                 str_detect(`Sensor Serial Number`,"[:alpha:]")
+                                 ~ `Sensor Serial Number`,
+                                 .default = `Col 9`))) |>
+        map(\(df) df |> fill(`Sensor Serial Number`,.direction = "updown")) |>
+        list_rbind() |>
         select(!`Col 9`) |>
+        # Remove Duplicates
+        distinct() |>
         arrange(`Subject ID`,`Condition ID`)
  }
 }
