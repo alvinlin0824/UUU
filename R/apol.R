@@ -18,7 +18,7 @@ apol <- function(events, gluc, index = NULL) {
       events[index] |>
         set_names() |>
         # Consider empty events.csv
-        map(possibly(\(path) vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(`Col 9` = "c"),col_select = c(Date,Time,Type,`Col 9`)),tibble()),.progress = TRUE) |>
+        map(possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(`Col 9` = "c"),col_select = c(Date,Time,Type,`Col 9`)),tibble()),.progress = TRUE) |>
         map(\(df) df |> filter(Type == "SENSOR_STARTED (58)")) |>
         map(\(df) df |> transmute(
           `Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
@@ -31,7 +31,7 @@ apol <- function(events, gluc, index = NULL) {
         # Second List
         # Import gluc.csv
         gluc[index] |>
-          map(possibly(\(path) vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,Gl,St,Tr),n_max = 2),tibble())),
+          map(possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,Gl,St,Tr),n_max = 2),tibble())),
         gluc[index] |>
           map(possibly(\(path) data.table::fread(path,select = c(1:7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","Gl","St","Tr"),colClasses = c("V2" = "Date","V4" = "character")),tibble())),
         bind_rows,.progress = TRUE) |>
@@ -74,7 +74,7 @@ apol <- function(events, gluc, index = NULL) {
       events |>
         set_names() |>
         # Consider empty events.csv
-        map(possibly(\(path) vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(`Col 9` = "c"),col_select = c(Date,Time,Type,`Col 9`)),tibble()),.progress = TRUE) |>
+        map(possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(`Col 9` = "c"),col_select = c(Date,Time,Type,`Col 9`)),tibble()),.progress = TRUE) |>
         map(\(df) df |> filter(Type == "SENSOR_STARTED (58)")) |>
         map(\(df) df |> transmute(
           `Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
@@ -87,7 +87,7 @@ apol <- function(events, gluc, index = NULL) {
         # Second List
         # Import gluc.csv
         gluc |>
-          map(possibly(\(path) vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,Gl,St,Tr),n_max = 2),tibble())),
+          map(possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,Gl,St,Tr),n_max = 2),tibble())),
         gluc |>
           map(possibly(\(path) data.table::fread(path,select = c(1:7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","Gl","St","Tr"),colClasses = c("V2" = "Date","V4" = "character")),tibble())),
         bind_rows,.progress = TRUE) |>

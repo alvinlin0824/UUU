@@ -9,7 +9,7 @@
 events <- function(events_path, index = NULL){
   if (is.numeric(index)) {
     events_path[index] |>
-      map(possibly(\(path) vroom(path,delim = ",",
+      map(possibly(\(path) vroom::vroom(path,delim = ",",
                                  col_names = T,
                                  show_col_types = F,
                                  col_types = c(`Col 5` = "c",`Col 9` = "c"),
@@ -53,7 +53,7 @@ events <- function(events_path, index = NULL){
         arrange(`Subject ID`,`Condition ID`)
     } else {
       events_path |>
-        map(possibly(\(path) vroom(path,delim = ",",
+        map(possibly(\(path) vroom::vroom(path,delim = ",",
                                    col_names = T,
                                    show_col_types = F,
                                    col_types = c(`Col 5` = "c",`Col 9` = "c"),

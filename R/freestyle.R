@@ -12,7 +12,7 @@ freestyle <- function(freestyle_path, index = NULL) {
   # Individual File
   if (is.numeric(index)) {
        freestyle_path[index] |>
-       map(possibly(\(path) vroom(path,delim = ",",col_names = T,show_col_types = F,col_select = c(`Unique Record ID`,Date,Time,`FreeStyle Reading`,Status)),tibble()),.progress = TRUE) |>
+       map(possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_select = c(`Unique Record ID`,Date,Time,`FreeStyle Reading`,Status)),tibble()),.progress = TRUE) |>
        map(\(df) df |>
           transmute(`Subject ID` =
                       case_when(
@@ -49,7 +49,7 @@ freestyle <- function(freestyle_path, index = NULL) {
   } else {
     # All Upload Data
     freestyle_path |>
-      map(possibly(\(path) vroom(path,delim = ",",col_names = T,show_col_types = F,col_select = c(`Unique Record ID`,Date,Time,`FreeStyle Reading`,Status)),tibble()),.progress = TRUE) |>
+      map(possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_select = c(`Unique Record ID`,Date,Time,`FreeStyle Reading`,Status)),tibble()),.progress = TRUE) |>
       map(\(df) df |>
             transmute(`Subject ID` =
                         case_when(
