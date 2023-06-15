@@ -19,13 +19,13 @@ mobi <- function(events, gluc, index = NULL) {
         set_names() |>
         # Consider empty events.csv
         map(possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Time = "c", Type = "c",`Col 9` = "c"),col_select = c(Date,Time,Type,`Col 9`)),tibble()),.progress = TRUE) |>
-        map(\(df) df |> filter(Type == "SENSOR_STARTED (58)")) |>
+        map(\(df) df |> filter(Type == "SENSOR_STARTED (58)"),.progress = TRUE) |>
         map(\(df) df |> transmute(
           `Date Time` = case_when(str_starts(Date,"[:digit:]{4}") ~
                                     ymd_hms(format(as.POSIXct(str_c(Date,Time,sep = " "),tz = "UTC"),tz="US/Pacific",format = "%Y-%m-%d:%H:%M:%S"),tz = "US/Pacific"),
                                   .default = ymd_hms(format(as.POSIXct(str_c(mdy(Date),Time,sep = " "),tz = "UTC"),tz="US/Pacific",format = "%Y-%m-%d:%H:%M:%S"),tz = "US/Pacific")),
           Type = Type,
-          `Sensor Serial Number` = `Col 9`)),
+          `Sensor Serial Number` = `Col 9`),.progress = TRUE),
       # Replaced Sensors Only
       # map(\(df) df |> slice_max(`Date Time`,n = 1)),
 
@@ -33,9 +33,9 @@ mobi <- function(events, gluc, index = NULL) {
         # Second List
         # Import gluc.csv
         gluc[index] |>
-          map(possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Date = "c", Time = "c", Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,Gl),n_max = 2),tibble())),
+          map(possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Date = "c", Time = "c", Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,Gl),n_max = 2),tibble()),.progress = TRUE),
         gluc[index] |>
-          map(possibly(\(path) data.table::fread(path,select = c(1:5),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","Gl"),colClasses = c("V2" = "character","V3" = "character","V4" = "character")),tibble())),
+          map(possibly(\(path) data.table::fread(path,select = c(1:5),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","Gl"),colClasses = c("V2" = "character","V3" = "character","V4" = "character")),tibble()),.progress = TRUE),
         bind_rows,.progress = TRUE) |>
         map(\(df) df |> transmute(`Subject ID` =
                                     case_when(
@@ -56,14 +56,14 @@ mobi <- function(events, gluc, index = NULL) {
                                   `Date Time` = case_when(str_starts(Date,"[:digit:]{4}") ~
                                                             ymd_hms(str_c(ymd(Date),hms::as_hms(Time),sep = " "),tz = "US/Pacific"),.default = ymd_hms(str_c(mdy(Date),hms::as_hms(Time),sep = " "),tz = "US/Pacific")),
                                   Type = Type,
-                                  Gl = Gl)) |>
-      map(\(df) df |> slice(2:n())),bind_rows,.progress = TRUE) |>
-      map(\(df) df |> arrange(`Date Time`)) |>
-      map(\(df) df |> fill(c(`Subject ID`,`Condition ID`),.direction = "up")) |>
-      map(\(df) df |> fill(`Sensor Serial Number`,.direction = "down")) |>
-      map(\(df) df |> filter(!(!is.na(`Sensor Serial Number`) & is.na(`Date Time`)))) |>
+                                  Gl = Gl),.progress = TRUE) |>
+        map(\(df) df |> slice(2:n())),bind_rows,.progress = TRUE) |>
+      map(\(df) df |> arrange(`Date Time`),.progress = TRUE) |>
+      map(\(df) df |> fill(c(`Subject ID`,`Condition ID`),.direction = "up"),.progress = TRUE) |>
+      map(\(df) df |> fill(`Sensor Serial Number`,.direction = "down"),.progress = TRUE) |>
+      map(\(df) df |> filter(!(!is.na(`Sensor Serial Number`) & is.na(`Date Time`))),.progress = TRUE) |>
       map(\(df) df |> relocate(`Subject ID`,`Condition ID`,`Sensor Serial Number`,
-                               `Date Time`,Type,Gl)) |>
+                               `Date Time`,Type,Gl),.progress = TRUE) |>
       list_rbind(names_to = "Path")
 
   } else {
@@ -76,21 +76,21 @@ mobi <- function(events, gluc, index = NULL) {
         set_names() |>
         # Consider empty events.csv
         map(possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Time = "c", Type = "c",`Col 9` = "c"),col_select = c(Date,Time,Type,`Col 9`)),tibble()),.progress = TRUE) |>
-        map(\(df) df |> filter(Type == "SENSOR_STARTED (58)")) |>
+        map(\(df) df |> filter(Type == "SENSOR_STARTED (58)"),.progress = TRUE) |>
         map(\(df) df |> transmute(
           `Date Time` = case_when(str_starts(Date,"[:digit:]{4}") ~
                                     ymd_hms(format(as.POSIXct(str_c(Date,Time,sep = " "),tz = "UTC"),tz="US/Pacific",format = "%Y-%m-%d:%H:%M:%S"),tz = "US/Pacific"),
                                   .default = ymd_hms(format(as.POSIXct(str_c(mdy(Date),Time,sep = " "),tz = "UTC"),tz="US/Pacific",format = "%Y-%m-%d:%H:%M:%S"),tz = "US/Pacific")),
           Type = Type,
-          `Sensor Serial Number` = `Col 9`)),
+          `Sensor Serial Number` = `Col 9`),.progress = TRUE),
 
       map2(
         # Second List
         # Import gluc.csv
         gluc |>
-          map(possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Date = "c", Time = "c", Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,Gl),n_max = 2),tibble())),
+          map(possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Date = "c", Time = "c", Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,Gl),n_max = 2),tibble()),.progress = TRUE),
         gluc |>
-          map(possibly(\(path) data.table::fread(path,select = c(1:5),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","Gl"),colClasses = c("V2" = "character","V3" = "character","V4" = "character")),tibble())),
+          map(possibly(\(path) data.table::fread(path,select = c(1:5),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","Gl"),colClasses = c("V2" = "character","V3" = "character","V4" = "character")),tibble()),.progress = TRUE),
         bind_rows,.progress = TRUE) |>
         map(\(df) df |> transmute(`Subject ID` =
                                     case_when(
@@ -111,14 +111,14 @@ mobi <- function(events, gluc, index = NULL) {
                                   `Date Time` = case_when(str_starts(Date,"[:digit:]{4}") ~
                                                             ymd_hms(str_c(ymd(Date),hms::as_hms(Time),sep = " "),tz = "US/Pacific"),.default = ymd_hms(str_c(mdy(Date),hms::as_hms(Time),sep = " "),tz = "US/Pacific")),
                                   Type = Type,
-                                  Gl = Gl)) |>
+                                  Gl = Gl),.progress = TRUE) |>
       map(\(df) df |> slice(2:n())),bind_rows,.progress = TRUE) |>
-      map(\(df) df |> arrange(`Date Time`)) |>
-      map(\(df) df |> fill(c(`Subject ID`,`Condition ID`),.direction = "up")) |>
-      map(\(df) df |> fill(`Sensor Serial Number`,.direction = "down")) |>
-      map(\(df) df |> filter(!(!is.na(`Sensor Serial Number`) & is.na(`Date Time`)))) |>
+      map(\(df) df |> arrange(`Date Time`),.progress = TRUE) |>
+      map(\(df) df |> fill(c(`Subject ID`,`Condition ID`),.direction = "up"),.progress = TRUE) |>
+      map(\(df) df |> fill(`Sensor Serial Number`,.direction = "down"),.progress = TRUE) |>
+      map(\(df) df |> filter(!(!is.na(`Sensor Serial Number`) & is.na(`Date Time`))),.progress = TRUE) |>
       map(\(df) df |> relocate(`Subject ID`,`Condition ID`,`Sensor Serial Number`,
-                               `Date Time`,Type,Gl)) |>
+                               `Date Time`,Type,Gl),.progress = TRUE) |>
       list_rbind(names_to = "Path") |>
       # Remove Duplicated Uploads
       distinct() |>
