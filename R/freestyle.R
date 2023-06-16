@@ -32,8 +32,8 @@ freestyle <- function(freestyle_path, index = NULL) {
         `BG Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
          Reference = `FreeStyle Reading`,
          Status = Status
-        )) |>
-      map(\(df) df |> filter(!is.na(`BG Date Time`))) |>
+        ),.progress = TRUE) |>
+      map(\(df) df |> filter(!is.na(`BG Date Time`)),.progress = TRUE) |>
       list_rbind() |>
       # Filter Status == 0
       filter(Status == 0) |>
@@ -69,8 +69,8 @@ freestyle <- function(freestyle_path, index = NULL) {
                       `BG Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
                       Reference = `FreeStyle Reading`,
                       Status = Status
-            )) |>
-      map(\(df) df |> filter(!is.na(`BG Date Time`))) |>
+            ),.progress = TRUE) |>
+      map(\(df) df |> filter(!is.na(`BG Date Time`)),.progress = TRUE) |>
       list_rbind() |>
       # Filter Status == 0
       filter(Status == 0) |>

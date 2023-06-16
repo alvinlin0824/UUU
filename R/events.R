@@ -36,7 +36,7 @@ events <- function(events_path, index = NULL){
                       `Sensor Serial Number` = `Col 5`,
                       `Col 9` = `Col 9`,
                       `Event Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
-                       Type = Type)) |>
+                       Type = Type),.progress = TRUE) |>
         list_rbind() |>
       # Remove Duplicated
         distinct() |>
@@ -80,16 +80,16 @@ events <- function(events_path, index = NULL){
                         `Sensor Serial Number` = `Col 5`,
                         `Col 9` = `Col 9`,
                         `Event Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
-                         Type = Type)) |>
+                         Type = Type),.progress = TRUE) |>
         # Remove Type is NA
-        map(\(df) df |> filter(!is.na(Type))) |>
+        map(\(df) df |> filter(!is.na(Type)),.progress = TRUE) |>
         map(\(df) df |> mutate(`Col 9` = case_when(str_detect(`Col 9`,"[:alpha:]") ~ `Col 9`,
                                                    .default = NA_character_),
                                `Sensor Serial Number` = case_when(
                                  str_detect(`Sensor Serial Number`,"[:alpha:]")
                                  ~ `Sensor Serial Number`,
-                                 .default = `Col 9`))) |>
-        map(\(df) df |> fill(`Sensor Serial Number`,.direction = "updown")) |>
+                                 .default = `Col 9`)),.progress = TRUE) |>
+        map(\(df) df |> fill(`Sensor Serial Number`,.direction = "updown"),.progress = TRUE) |>
         list_rbind() |>
         select(!`Col 9`) |>
         # Remove Duplicates
