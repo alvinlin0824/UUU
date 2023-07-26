@@ -3,6 +3,7 @@
 export(apol)
 export(atna)
 export(events)
+export(fct_case_when)
 export(filter_path)
 export(freestyle)
 export(mobi)
