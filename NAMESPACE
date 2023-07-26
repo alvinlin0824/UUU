@@ -2,6 +2,7 @@
 
 export(apol)
 export(atna)
+export(diff_measure)
 export(events)
 export(fct_case_when)
 export(filter_path)
