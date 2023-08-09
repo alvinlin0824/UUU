@@ -4,10 +4,10 @@
 \alias{PairBg}
 \title{Pair BG Reference}
 \usage{
-PairBg(data)
+PairBg(sensor_data)
 }
 \arguments{
-\item{data}{Upload Data}
+\item{sensor_data}{Sensor Data}
 }
 \value{
 Tibble
