@@ -1,11 +1,12 @@
 #' Pair BG Reference
 #'
 #' @param sensor_data Sensor Data
+#' @param apol Boolean. Is sensor Apol or Mobi
 #'
 #' @return Tibble
 #' @export
 
-PairBg <- function(sensor_data){
+PairBg <- function(sensor_data, apol = NULL){
   # BG Strips Data
   BG |>
     # Remove Extreme Reference readings <20 or >500
@@ -14,10 +15,20 @@ PairBg <- function(sensor_data){
       # Sensor Data
       sensor_data |>
         dplyr::mutate(
-          `Lower Bound` = case_when(Type %in% c("904","906") ~ `Date Time` - dminutes(5),
-                                    .default = `Date Time` - dminutes(8)),
-          `Upper Bound` = case_when(Type %in% c("904","906") ~ `Date Time` + dminutes(5),
-                                    .default = `Date Time` + dminutes(8))
+          `Date Time` = force_tz(`Date Time`,tz = "UTC"),
+          `Lower Bound` =
+            if (apol == TRUE) {
+              case_when(Type %in% c("904","906") ~ `Date Time` - dminutes(5),
+                        .default = `Date Time` - dminutes(8))
+            }
+          else `Date Time` - dminutes(5),
+
+          `Upper Bound` =
+            if (apol == TRUE) {
+              case_when(Type %in% c("904","906") ~ `Date Time` + dminutes(5),
+                        .default = `Date Time` + dminutes(8))
+            }
+          else `Date Time` + dminutes(5)
         ),
       by = join_by("Subject ID",between(`BG Date Time`,`Lower Bound`,`Upper Bound`)),
       multiple = "all"

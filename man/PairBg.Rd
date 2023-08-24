@@ -4,10 +4,12 @@
 \alias{PairBg}
 \title{Pair BG Reference}
 \usage{
-PairBg(sensor_data)
+PairBg(sensor_data, apol = NULL)
 }
 \arguments{
 \item{sensor_data}{Sensor Data}
+
+\item{apol}{Boolean. Is sensor Apol or Mobi}
 }
 \value{
 Tibble
