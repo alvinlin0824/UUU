@@ -19,6 +19,9 @@ filter_path <- function(file_path, filter_text = "^$|pattern"){
   free_path <- file_path[stringr::str_detect(file_path,stringr::regex("freestyle",ignore_case = T)) &
                            !stringr::str_detect(file_path,stringr::regex("Archive|Archives|Transfer|Transfers",ignore_case = T)) & !stringr::str_detect(file_path,stringr::regex(filter_text,ignore_case = T))]
 
-  out <- list(events_path, gluc_path, glucPlus_path, free_path)
+  anaPlus_path <- file_path[stringr::str_detect(file_path,stringr::regex("anaPlus",ignore_case = T)) &
+                           !stringr::str_detect(file_path,stringr::regex("Archive|Archives|Transfer|Transfers",ignore_case = T)) & !stringr::str_detect(file_path,stringr::regex(filter_text,ignore_case = T))]
+
+  out <- list(events_path, gluc_path, glucPlus_path, free_path, anaPlus_path)
   return(out)
 }
