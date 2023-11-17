@@ -13,9 +13,9 @@ oneminutes <- function(one_minutes, index = NULL) {
 
     purrr::map2(
       # Import oneminutes.csv
-      oneminute_path[index] |>
+      one_minutes[index] |>
         purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,TpSk),n_max = 2),tibble::tibble()),.progress = TRUE),
-      oneminute_path[index] |>
+      one_minutes[index] |>
         purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:4,7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","TpSk"),colClasses = c("V2" = "Date","V4" = "character")),tibble::tibble()),.progress = TRUE),
       dplyr::bind_rows,.progress = TRUE) |>
       purrr::map(\(df) df |> dplyr::transmute(`Subject ID` =
@@ -44,9 +44,9 @@ oneminutes <- function(one_minutes, index = NULL) {
     # All upload data
     purrr::map2(
       # Import oneminutes.csv
-      oneminute_path |>
+      one_minutes |>
         purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,TpSk),n_max = 2),tibble::tibble()),.progress = TRUE),
-      oneminute_path |>
+      one_minutes |>
         purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:4,7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","TpSk"),colClasses = c("V2" = "Date","V4" = "character")),tibble::tibble()),.progress = TRUE),
       dplyr::bind_rows,.progress = TRUE) |>
       purrr::map(\(df) df |> dplyr::transmute(`Subject ID` =

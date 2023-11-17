@@ -1,6 +1,6 @@
 Package: UUU
 Title: Import Upload Data much easier
-Version: 0.0.0.9000
+Version: 1.1.1
 Authors@R: 
     person("Alvin", "Lin", , "alvin.lin@abbott.com", role = c("aut", "cre"))
 Description: A function reduces copy and paste when importing upload data.
