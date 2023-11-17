@@ -7,7 +7,7 @@
 filter_path(file_path, filter_text = "^$|pattern")
 }
 \arguments{
-\item{file_path}{File path of events.csv, gluc.csv, glucPlus.csv, and freestyle.csv.}
+\item{file_path}{File path of events.csv, gluc.csv, glucPlus.csv, freestyle.csv, anaPlus.csv and oneMinutes.csv.}
 
 \item{filter_text}{Match a fixed string that you would like to remove. Default is an empty string.}
 }
