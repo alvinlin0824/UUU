@@ -33,7 +33,7 @@ apol <- function(events, gluc, index = NULL) {
         gluc[index] |>
           purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,Gl,St,Tr),n_max = 2),tibble::tibble()),.progress = TRUE),
         gluc[index] |>
-          purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","Gl","St","Tr"),colClasses = c("V2" = "Date","V4" = "character")),tibble::tibble()),.progress = TRUE),
+          purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","Gl","St","Tr"),colClasses = c("V2" = "Date","V4" = "character"),fill = T),tibble::tibble()),.progress = TRUE),
         dplyr::bind_rows,.progress = TRUE) |>
         purrr::map(\(df) df |> dplyr::transmute(`Subject ID` =
                                     dplyr::case_when(
@@ -89,7 +89,7 @@ apol <- function(events, gluc, index = NULL) {
         gluc |>
           purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,Gl,St,Tr),n_max = 2),tibble::tibble()),.progress = TRUE),
         gluc |>
-          purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","Gl","St","Tr"),colClasses = c("V2" = "Date","V4" = "character")),tibble::tibble()),.progress = TRUE),
+          purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","Gl","St","Tr"),colClasses = c("V2" = "Date","V4" = "character"),fill = T),tibble::tibble()),.progress = TRUE),
         bind_rows,.progress = TRUE) |>
         purrr::map(\(df) df |> dplyr::transmute(`Subject ID` =
                                   dplyr::case_when(
