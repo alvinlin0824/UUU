@@ -73,6 +73,220 @@ freestyle(freestyle_path = free_path)
 apol(events = events_path,gluc = gluc_path)
 ```
 
+<!-- Apol 22222 -->
+
+```{r}
+file_list <- dir_ls(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-PMS-22222\UploadData)"),recurse = T,glob = "*events.csv|*freestyle.csv|*gluc.csv")
+```
+
+```{r}
+events_path <- file_list[str_detect(file_list,"events")  & !str_detect(file_list,regex("Transfers",ignore_case = T))]
+gluc_path <- file_list[str_detect(file_list,"gluc") & !str_detect(file_list,regex("Transfers",ignore_case = T))]
+free_path <- file_list[str_detect(file_list,"freestyle") & !str_detect(file_list,regex("Transfers",ignore_case = T))]
+```
+
+```{r}
+apol <- function(events, gluc, index = NULL) {
+
+  # Individual File
+  if (is.numeric(index)) {
+    map2(
+      # First List
+      # Import Events
+      events[index] |>
+        set_names() |>
+        # Consider empty events.csv
+        map(possibly(\(path) vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(`Col 9` = "c"),col_select = c(Date,Time,Type,`Col 9`)),tibble()),.progress = TRUE) |>
+        map(\(df) df |> filter(Type == "SENSOR_STARTED (58)")) |>
+        map(\(df) df |> transmute(
+          `Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
+           Type = Type,
+          `Sensor Serial Number` = `Col 9`)),
+        # Replaced Sensors Only
+        # map(\(df) df |> slice_max(`Date Time`,n = 1)),
+
+      map2(
+        # Second List
+        # Import gluc.csv
+        gluc[index] |>
+          map(possibly(\(path) vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,Gl,St,Tr),n_max = 2),tibble())),
+        gluc[index] |>
+          map(possibly(\(path) data.table::fread(path,select = c(1:7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","Gl","St","Tr"),colClasses = c("V2" = "Date","V4" = "character")),tibble())),
+        bind_rows,.progress = TRUE) |>
+        map(\(df) df |> transmute(`Subject ID` =
+                                    case_when(
+                                      # Site ID == ADC
+                                      str_to_upper(str_extract(df[1,1],regex("(?<=Site ID = ).{3}",ignore_case = T))) == "ADC" ~ str_extract(df[1,1],regex("(?<=Subject ID = )[:digit:]{4}",ignore_case = T)),
+                                      # Site ID == 009
+                                      str_extract(df[1,1],regex("(?<=Site ID = ).{2}",ignore_case = T)) == "00" ~
+                                        str_c(str_extract(df[1,1],regex("(?<=Site ID = 00).{1}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                                      # Site ID starts with 1
+                                      str_extract(df[1,1],regex("(?<=Site ID = ).{1}",ignore_case = T)) == "1" ~
+                                        str_c(str_extract(df[1,1],regex("(?<=Site ID = ).{3}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                                      # Site ID == 081 or 057
+                                      str_extract(df[1,1],regex("(?<=Site ID = ).{1}",ignore_case = T)) == "0" ~ str_c(str_extract(df[1,1],regex("(?<=Site ID = 0).{2}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                                      # Site ID mislabeled
+                                      .default = str_c(str_extract(df[1,1],regex("(?<=Site ID = )[:alpha:]+",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = )[:digit:]+",ignore_case = T)))
+                                    ),
+                                  `Condition ID` = str_extract(df[1,1],regex("(?<=Condition ID = ).{3}",ignore_case = T)),
+                                  `Reader ID` = str_extract(df[2,1],regex("(?<=\\s).{13}",ignore_case = T)),
+                                  `Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
+                                   Type = Type,
+                                   Gl = Gl,
+                                   St = St,
+                                   Tr = Tr)) |>
+        map(\(df) df |> slice(3:n())),bind_rows) |>
+      map(\(df) df |>  arrange(`Date Time`)) |>
+      map(\(df) df |> fill(c(`Subject ID`,`Condition ID`,`Reader ID`),.direction = "up")) |>
+      map(\(df) df |> fill(`Sensor Serial Number`,.direction = "down")) |>
+      map(\(df) df |> relocate(`Subject ID`,`Condition ID`,`Sensor Serial Number`,
+                               `Reader ID`,`Date Time`,Type,Gl,St,Tr)) |>
+      list_rbind(names_to = "Path")
+
+  } else {
+
+    # All Upload Data
+    map2(
+      # First List
+      # Import Events
+      events |>
+        set_names() |>
+        # Consider empty events.csv
+        map(possibly(\(path) vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(`Col 9` = "c"),col_select = c(Date,Time,Type,`Col 9`)),tibble()),.progress = TRUE) |>
+        map(\(df) df |> filter(Type == "SENSOR_STARTED (58)")) |>
+        map(\(df) df |> transmute(
+          `Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
+           Type = Type,
+          `Sensor Serial Number` = `Col 9`)),
+        # Replaced Sensors Only
+        # map(\(df) df |> slice_max(`Date Time`,n = 1)),
+
+      map2(
+        # Second List
+        # Import gluc.csv
+        gluc |>
+          map(possibly(\(path) vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,Gl,St,Tr),n_max = 2),tibble())),
+        gluc |>
+          map(possibly(\(path) data.table::fread(path,select = c(1:7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","Gl","St","Tr"),colClasses = c("V2" = "Date","V4" = "character")),tibble())),
+        bind_rows,.progress = TRUE) |>
+        map(\(df) df |> transmute(`Subject ID` =
+                                    case_when(
+                                      # Site ID == ADC
+                                      str_to_upper(str_extract(df[1,1],regex("(?<=Site ID = ).{3}",ignore_case = T))) == "ADC" ~ str_extract(df[1,1],regex("(?<=Subject ID = )[:digit:]{4}",ignore_case = T)),
+                                      # Site ID == 009
+                                      str_extract(df[1,1],regex("(?<=Site ID = ).{2}",ignore_case = T)) == "00" ~
+                                        str_c(str_extract(df[1,1],regex("(?<=Site ID = 00).{1}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                                      # Site ID starts with 1
+                                      str_extract(df[1,1],regex("(?<=Site ID = ).{1}",ignore_case = T)) == "1" ~
+                                        str_c(str_extract(df[1,1],regex("(?<=Site ID = ).{3}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                                      # Site ID == 081 or 057
+                                      str_extract(df[1,1],regex("(?<=Site ID = ).{1}",ignore_case = T)) == "0" ~ str_c(str_extract(df[1,1],regex("(?<=Site ID = 0).{2}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                                      # Site ID mislabeled
+                                      .default = str_c(str_extract(df[1,1],regex("(?<=Site ID = )[:alpha:]+",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = )[:digit:]+",ignore_case = T)))
+                                    ),
+                                  `Condition ID` = str_extract(df[1,1],regex("(?<=Condition ID = ).{3}",ignore_case = T)),
+                                  `Reader ID` = str_extract(df[2,1],regex("(?<=\\s).{13}",ignore_case = T)),
+                                  `Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
+                                   Type = Type,
+                                   Gl = Gl,
+                                   St = St,
+                                   Tr = Tr)) |>
+        map(\(df) df |> slice(3:n())),bind_rows) |>
+      map(\(df) df |> arrange(`Date Time`)) |>
+      map(\(df) df |> fill(c(`Subject ID`,`Condition ID`,`Reader ID`),.direction = "up")) |>
+      map(\(df) df |> fill(`Sensor Serial Number`,.direction = "down")) |>
+      map(\(df) df |> relocate(`Subject ID`,`Condition ID`,`Sensor Serial Number`,
+                               `Reader ID`,`Date Time`,Type,Gl,St,Tr)) |>
+      list_rbind(names_to = "Path") |>
+      # Remove Duplicated Uploads
+      distinct() |>
+      arrange(Path,`Subject ID`,`Condition ID`,`Sensor Serial Number`)
+  }
+}
+```
+
+```{r}
+apol(events = events_path[1:5],gluc = gluc_path[1:5]) |> View()
+```
+
+```{r}
+   map2(
+      # First List
+      # Import Events
+     events_path[1] |>
+        set_names() |>
+        # Consider empty events.csv
+        map(possibly(\(path) vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(`Col 9` = "c"),col_select = c(Date,Time,Type,`Col 9`)),tibble()),.progress = TRUE) |>
+        map(\(df) df |> filter(Type == "SENSOR_STARTED (58)")) |>
+        map(\(df) df |> transmute(
+          `Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
+           Type = Type,
+          `Sensor Serial Number` = `Col 9`)),
+        # Replaced Sensors Only
+        # map(\(df) df |> slice_max(`Date Time`,n = 1)),
+
+      map2(
+        # Second List
+        # Import gluc.csv
+        gluc_path[1] |>
+          map(possibly(\(path) vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,Gl,St,Tr),n_max = 2),tibble())),
+        gluc_path[1] |>
+          map(possibly(\(path) data.table::fread(path,select = c(1:7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","Gl","St","Tr"),colClasses = c("V2" = "Date","V4" = "character")),tibble())),
+        bind_rows,.progress = TRUE) |>
+        map(\(df) df |> transmute(`Subject ID` =
+                                    case_when(
+                                      # Site ID == ADC
+                                      str_to_upper(str_extract(df[1,1],regex("(?<=Site ID = ).{3}",ignore_case = T))) == "ADC" ~ str_extract(df[1,1],regex("(?<=Subject ID = )[:digit:]{4}",ignore_case = T)),
+                                      # Site ID == 009
+                                      str_extract(df[1,1],regex("(?<=Site ID = ).{2}",ignore_case = T)) == "00" ~
+                                        str_c(str_extract(df[1,1],regex("(?<=Site ID = 00).{1}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                                      # Site ID starts with 1
+                                      str_extract(df[1,1],regex("(?<=Site ID = ).{1}",ignore_case = T)) == "1" ~
+                                        str_c(str_extract(df[1,1],regex("(?<=Site ID = ).{3}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                                      # Site ID == 081 or 057
+                                      str_extract(df[1,1],regex("(?<=Site ID = ).{1}",ignore_case = T)) == "0" ~ str_c(str_extract(df[1,1],regex("(?<=Site ID = 0).{2}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                                      # Site ID mislabeled
+                                      .default = str_c(str_extract(df[1,1],regex("(?<=Site ID = )[:alpha:]+",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = )[:digit:]+",ignore_case = T)))
+                                    ),
+                                  `Condition ID` = str_extract(df[1,1],regex("(?<=Condition ID = ).{3}",ignore_case = T)),
+                                  `Reader ID` = str_extract(df[2,1],regex("(?<=\\s).{13}",ignore_case = T)),
+                                  `Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
+                                   Type = Type,
+                                   Gl = Gl,
+                                   St = St,
+                                   Tr = Tr)) |>
+        map(\(df) df |> slice(3:n())),bind_rows) |>
+      map(\(df) df |>  arrange(`Date Time`)) |>
+      map(\(df) df |> fill(c(`Subject ID`,`Condition ID`,`Reader ID`),.direction = "up")) |>
+      map(\(df) df |> fill(`Sensor Serial Number`,.direction = "down")) |>
+      map(\(df) df |> relocate(`Subject ID`,`Condition ID`,`Sensor Serial Number`,
+                               `Reader ID`,`Date Time`,Type,Gl,St,Tr)) |>
+      list_rbind(names_to = "Path") |> View()
+```
+
+```{r}
+UUU::apol(events = events_path,gluc = gluc_path)
+```
+
+```{r}
+UUU::freestyle(freestyle_path = free_path,index = 1)
+```
+
+```{r}
+#| warning: false
+apol(events = events_path,gluc = gluc_path,index = 4)
+```
+
+```{r}
+#| warning: false
+saveRDS(UUU::apol(events = events_path,gluc = gluc_path),gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\Clinical Study Files\Apollo\ADC-US-PMS-22222_SiBionics\Statistics\Programs\Datasets\AL\UUU.rds)"))
+```
+
+```{r}
+#| warning: false
+saveRDS(UUU::freestyle(freestyle_path = free_path,index = 1),gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\Clinical Study Files\Apollo\ADC-US-PMS-22222_SiBionics\Statistics\Programs\Datasets\AL\BG.rds)"))
+```
+
 <!-- Mobi IH102 -->
 
 ```{r}
@@ -99,7 +313,7 @@ mobi(events = events_path,gluc = gluc_path) |> View()
 
 ```{r}
 #| label: Find all events gluc and freestyle files csv
-file_list1 <- dir_ls(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\CDM_16157\115\UUU)"),recurse = T,glob = "*events.csv|*gluc.csv|*freestyle.csv")
+file_list1 <- dir_ls(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\CDM_16157\115\UUU)"),recurse = T,glob = "*events.csv")
 ```
 
 ```{r}
@@ -127,7 +341,7 @@ events_path <- file_list[str_detect(file_list,"events")]
 
 ```{r}
 #| warning: false
-  events_path |>
+  events_path[314:316] |>
       map(possibly(\(path) vroom(path,delim = ",",
                                  col_names = T,
                                  show_col_types = F,
@@ -153,21 +367,33 @@ events_path <- file_list[str_detect(file_list,"events")]
                       `Reader ID` = str_extract(df[2,1],regex("(?<=\\s).{13}",ignore_case = T)),
                       `Sensor Serial Number` = `Col 5`,
                       `Col 9` = `Col 9`,
-                      `Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
+                      `Event Date Time` = ymd_hms(str_c(Date,Time,sep = " ")),
                        Type = Type)) |>
-        list_rbind() |>
-      # Remove Duplicated
-        distinct() |>
-      # Remove Type is NA
-        filter(!is.na(Type)) |> 
-        mutate(`Col 9` = case_when(str_detect(`Col 9`,"[:alpha:]") ~ `Col 9`,
+        map(\(df) df |> filter(!is.na(Type))) |> 
+        map(\(df) df |> mutate(`Col 9` = case_when(str_detect(`Col 9`,"[:alpha:]") ~ `Col 9`,
                                    .default = NA_character_),
-               `Sensor Serial Number` = case_when(
-                 str_detect(`Sensor Serial Number`,"[:alpha:]") ~ `Sensor Serial Number`,
-                   .default = `Col 9`)) |> 
-        fill(`Sensor Serial Number`,.direction = "up") |> 
+                               `Sensor Serial Number` = case_when(
+                                str_detect(`Sensor Serial Number`,"[:alpha:]") 
+                                 ~ `Sensor Serial Number`,
+                                 .default = `Col 9`))) |> 
+        map(\(df) df |> fill(`Sensor Serial Number`,.direction = "updown")) |> 
+        list_rbind() |> 
         select(!`Col 9`) |> 
-        arrange(`Subject ID`,`Condition ID`) |> View()
+        distinct() |> 
+        arrange(`Subject ID`,`Condition ID`)
+      #   list_rbind() |>
+      # # Remove Duplicated
+      #   distinct() |>
+      # Remove Type is NA
+        # filter(!is.na(Type)) |> 
+        # mutate(`Col 9` = case_when(str_detect(`Col 9`,"[:alpha:]") ~ `Col 9`,
+        #                            .default = NA_character_),
+        #        `Sensor Serial Number` = case_when(
+        #          str_detect(`Sensor Serial Number`,"[:alpha:]") ~ `Sensor Serial Number`,
+        #            .default = `Col 9`)) |> 
+        # fill(`Sensor Serial Number`,.direction = "up") |> 
+        # select(!`Col 9`) |> View()
+        # arrange(`Subject ID`,`Condition ID`) |> 
 ```
 
 <!-- 225 SE14 Site ID = CIG -->
@@ -250,3 +476,441 @@ UUU::apol(events = events_path,gluc = gluc_path,index = 20) |> View()
       arrange(Path,`Subject ID`,`Condition ID`,`Sensor Serial Number`) |> 
       View()
 ```
+
+<!-- Mobi IH116 -->
+
+```{r}
+#| label: Find all events gluc and freestyle files csv
+file_list <- dir_ls(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\CDM_16157\116)"),recurse = T,glob = "*events.csv|*glucPlus.csv|*freestyle.csv")
+```
+
+```{r eval = params$interim}
+#| label: Interim Filter events, glucplus and freestyle
+events_path <- UUU::filter_path(file_path = file_list,filter_text = "UUUFIN|BGM")[[1]] 
+glucplus_path <- UUU::filter_path(file_path = file_list,filter_text = "UUUFIN|BGM")[[3]]
+free_path <- UUU::filter_path(file_path = file_list,filter_text = "UUUFIN|AUUFIN")[[4]]
+```
+
+```{r}
+mobi1 <- function(events, gluc, index = NULL) {
+
+  # Individual File
+  if (is.numeric(index)) {
+    map2(
+      # First List
+      # Import Events
+      events[index] |>
+        set_names() |>
+        # Consider empty events.csv
+        map(possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Time = "c", Type = "c",`Col 9` = "c"),col_select = c(Date,Time,Type,`Col 9`)),tibble()),.progress = TRUE) |>
+        map(\(df) df |> filter(Type == "SENSOR_STARTED (58)"),.progress = TRUE) |>
+        map(\(df) df |> transmute(
+          `Date Time` = case_when(str_starts(Date,"[:digit:]{4}") ~
+                                    ymd_hms(format(as.POSIXct(str_c(Date,Time,sep = " "),tz = "UTC"),tz="US/Pacific",format = "%Y-%m-%d:%H:%M:%S"),tz = "US/Pacific"),
+                                  .default = ymd_hms(format(as.POSIXct(str_c(mdy(Date),Time,sep = " "),tz = "UTC"),tz="US/Pacific",format = "%Y-%m-%d:%H:%M:%S"),tz = "US/Pacific")),
+          Type = Type,
+          `Sensor Serial Number` = `Col 9`),.progress = TRUE),
+      # Replaced Sensors Only
+      # map(\(df) df |> slice_max(`Date Time`,n = 1)),
+
+      map2(
+        # Second List
+        # Import gluc.csv
+        gluc[index] |>
+          map(possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Date = "c", Time = "c", Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,Gl),n_max = 2),tibble()),.progress = TRUE),
+        gluc[index] |>
+          map(possibly(\(path) data.table::fread(path,select = c(1:5),skip = 2,col.names = c("Unique Record ID","Date","Time","Type","Gl"),colClasses = c("V2" = "character","V3" = "character","V4" = "character")),tibble()),.progress = TRUE),
+        bind_rows,.progress = TRUE) |>
+        map(\(df) df |> transmute(`Subject ID` =
+                                    case_when(
+                                      # Site ID == ADC
+                                      str_to_upper(str_extract(df[1,1],regex("(?<=Site ID = ).{3}",ignore_case = T))) == "ADC" ~ str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T)),
+                                      # Site ID == 009
+                                      str_extract(df[1,1],regex("(?<=Site ID = ).{2}",ignore_case = T)) == "00" ~
+                                        str_c(str_extract(df[1,1],regex("(?<=Site ID = 00).{1}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                                      # Site ID starts with 1
+                                      str_extract(df[1,1],regex("(?<=Site ID = ).{1}",ignore_case = T)) == "1" ~
+                                        str_c(str_extract(df[1,1],regex("(?<=Site ID = ).{3}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                                      # Site ID == 081
+                                      str_extract(df[1,1],regex("(?<=Site ID = ).{1}",ignore_case = T)) == "0" ~ str_c(str_extract(df[1,1],regex("(?<=Site ID = 0).{2}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = )[:digit:]+",ignore_case = T))),
+                                      # Site ID mislabeled
+                                      .default = str_c(str_extract(df[1,1],regex("(?<=Site ID = )[:alpha:]+",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = )[:digit:]+",ignore_case = T)))
+                                    ),
+                                  `Condition ID` = str_extract(df[1,1],regex("(?<=Condition ID = ).{3}",ignore_case = T)),
+                                  `Date Time` = case_when(str_starts(Date,"[:digit:]{4}") ~
+                                                            ymd_hms(str_c(ymd(Date),hms::as_hms(Time),sep = " "),tz = "US/Pacific"),.default = ymd_hms(str_c(mdy(Date),hms::as_hms(Time),sep = " "),tz = "US/Pacific")),
+                                  Type = Type,
+                                  Gl = Gl),.progress = TRUE) |>
+        map(\(df) df |> slice(2:n())),bind_rows,.progress = TRUE) |>
+      map(\(df) df |> arrange(`Date Time`),.progress = TRUE) |>
+      map(\(df) df |> fill(c(`Subject ID`,`Condition ID`),.direction = "up"),.progress = TRUE) |>
+      map(\(df) df |> fill(`Sensor Serial Number`,.direction = "down"),.progress = TRUE) |>
+      # map(\(df) df |> filter(!(!is.na(`Sensor Serial Number`) & is.na(`Date Time`))),.progress = TRUE) |>
+      map(\(df) df |> relocate(`Subject ID`,`Condition ID`,`Sensor Serial Number`,
+                               `Date Time`,Type,Gl),.progress = TRUE) |>
+      list_rbind(names_to = "Path")
+
+  } else {
+
+    # All Upload Data
+    map2(
+      # First List
+      # Import Events
+      events |>
+        set_names() |>
+        # Consider empty events.csv
+        map(possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Time = "c", Type = "c",`Col 9` = "c"),col_select = c(Date,Time,Type,`Col 9`)),tibble()),.progress = TRUE) |>
+        map(\(df) df |> filter(Type == "SENSOR_STARTED (58)"),.progress = TRUE) |>
+        map(\(df) df |> transmute(
+          `Date Time` = case_when(str_starts(Date,"[:digit:]{4}") ~
+                                    ymd_hms(format(as.POSIXct(str_c(Date,Time,sep = " "),tz = "UTC"),tz="US/Pacific",format = "%Y-%m-%d:%H:%M:%S"),tz = "US/Pacific"),
+                                  .default = ymd_hms(format(as.POSIXct(str_c(mdy(Date),Time,sep = " "),tz = "UTC"),tz="US/Pacific",format = "%Y-%m-%d:%H:%M:%S"),tz = "US/Pacific")),
+          Type = Type,
+          `Sensor Serial Number` = `Col 9`),.progress = TRUE),
+
+      map2(
+        # Second List
+        # Import gluc.csv
+        gluc |>
+          map(possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Date = "c", Time = "c", Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,Gl),n_max = 2),tibble()),.progress = TRUE),
+        gluc |>
+          map(possibly(\(path) data.table::fread(path,select = c(1:5),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","Gl"),colClasses = c("V2" = "character","V3" = "character","V4" = "character")),tibble()),.progress = TRUE),
+        bind_rows,.progress = TRUE) |>
+        map(\(df) df |> transmute(`Subject ID` =
+                                    case_when(
+                                      # Site ID == ADC
+                                      str_to_upper(str_extract(df[1,1],regex("(?<=Site ID = ).{3}",ignore_case = T))) == "ADC" ~ str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T)),
+                                      # Site ID == 009
+                                      str_extract(df[1,1],regex("(?<=Site ID = ).{2}",ignore_case = T)) == "00" ~
+                                        str_c(str_extract(df[1,1],regex("(?<=Site ID = 00).{1}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                                      # Site ID starts with 1
+                                      str_extract(df[1,1],regex("(?<=Site ID = ).{1}",ignore_case = T)) == "1" ~
+                                        str_c(str_extract(df[1,1],regex("(?<=Site ID = ).{3}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                                      # Site ID == 081
+                                      str_extract(df[1,1],regex("(?<=Site ID = ).{1}",ignore_case = T)) == "0" ~ str_c(str_extract(df[1,1],regex("(?<=Site ID = 0).{2}",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = )[:digit:]+",ignore_case = T))),
+                                      # Site ID mislabeled
+                                      .default = str_c(str_extract(df[1,1],regex("(?<=Site ID = )[:alpha:]+",ignore_case = T)),str_extract(df[1,1],regex("(?<=Subject ID = )[:digit:]+",ignore_case = T)))
+                                    ),
+                                  `Condition ID` = str_extract(df[1,1],regex("(?<=Condition ID = ).{3}",ignore_case = T)),
+                                  `Date Time` = case_when(str_starts(Date,"[:digit:]{4}") ~
+                                                            ymd_hms(str_c(ymd(Date),hms::as_hms(Time),sep = " "),tz = "US/Pacific"),.default = ymd_hms(str_c(mdy(Date),hms::as_hms(Time),sep = " "),tz = "US/Pacific")),
+                                  Type = Type,
+                                  Gl = Gl),.progress = TRUE) |>
+      map(\(df) df |> slice(2:n())),bind_rows,.progress = TRUE) |>
+      map(\(df) df |> arrange(`Date Time`),.progress = TRUE) |>
+      map(\(df) df |> fill(c(`Subject ID`,`Condition ID`),.direction = "up"),.progress = TRUE) |>
+      map(\(df) df |> fill(`Sensor Serial Number`,.direction = "down"),.progress = TRUE) |>
+      map(\(df) df |> filter(!(!is.na(`Sensor Serial Number`) & is.na(`Date Time`))),.progress = TRUE) |>
+      map(\(df) df |> relocate(`Subject ID`,`Condition ID`,`Sensor Serial Number`,
+                               `Date Time`,Type,Gl),.progress = TRUE) |>
+      list_rbind(names_to = "Path") |>
+      # Remove Duplicated Uploads
+      distinct() |>
+      arrange(Path,`Subject ID`,`Condition ID`,`Sensor Serial Number`)
+  }
+}
+```
+
+<!-- 34,76 empty -->
+
+```{r}
+#| warning: false
+mobi1(events = events_path,gluc = glucplus_path,index = 76) |> View()
+```
+
+<!-- Mobi ANA -->
+
+```{r}
+#| label: Import ketone events, anaplus files csv
+#| eval: false
+file_list_ketone <- dir_ls(gsub("\\\\", "/", r"(C:\UDP\OutputFiles\Output_2023-11-02-13-54\outputs)"),recurse = T,glob = "*events.csv|*anaPlus.csv")
+```
+
+```{r}
+#| label: Ketone Filter events, anaPlus
+#| eval: false
+events_path_ketone <- UUU::filter_path(file_path = file_list_ketone)[[1]]
+anaplus_path_ketone <- file_list_ketone[str_detect(file_list_ketone,"anaPlus.csv")]
+```
+
+```{r}
+#| warning: false
+#| eval: false
+mobi_ana <- function(events, ana, index = NULL) {
+
+  # Individual File
+  if (is.numeric(index)) {
+    purrr::map2(
+      # First List
+      # Import Events
+      events[index] |>
+        purrr::set_names() |>
+        # Consider empty events.csv
+        purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Time = "c", Type = "c",`Col 9` = "c"),col_select = c(Date,Time,Type,`Col 9`)),tibble::tibble()),.progress = TRUE) |>
+        purrr::map(\(df) df |> dplyr::filter(Type == "SENSOR_STARTED (58)"),.progress = TRUE) |>
+        purrr::map(\(df) df |> dplyr::transmute(
+          `Date Time` = lubridate::ymd_hms(stringr::str_c(Date,Time,sep = " ")),
+          Type = Type,
+          `Sensor Serial Number` = `Col 9`),.progress = TRUE),
+
+      purrr::map2(
+        # Second List
+        # Import anaPlus.csv or ana.csv
+        ana[index] |>
+          purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Date = "c", Time = "c", Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,ANA,Tr),n_max = 2),tibble::tibble()),.progress = TRUE),
+        ana[index] |>
+          purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:5,7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","ANA","Tr"),colClasses = c("V2" = "character","V3" = "character","V4" = "character")),tibble::tibble()),.progress = TRUE),
+        dplyr::bind_rows,.progress = TRUE) |> 
+        purrr::map(\(df) df |> dplyr::transmute(`Subject ID` =
+                                    dplyr::case_when(
+                                      # Site ID == ADC
+                                      stringr::str_to_upper(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{3}",ignore_case = T))) == "ADC" ~ stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = )[:digit:]{4}",ignore_case = T)),
+                                      # Site ID == 009
+                                      stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{2}",ignore_case = T)) == "00" ~
+                                        stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = 00).{1}",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                                      # Site ID starts with 1
+                                      stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{1}",ignore_case = T)) == "1" ~
+                                        stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{3}",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                                      # Site ID == 081 or 057
+                                      stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{1}",ignore_case = T)) == "0" ~ stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = 0).{2}",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = )[:digit:]+",ignore_case = T))),
+                                      # Site ID mislabeled
+                                      .default = stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = )[:alnum:]+",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = )[:digit:]+",ignore_case = T)))
+                                    ),
+                                  `Condition ID` = stringr::str_extract(df[1,1],stringr::regex("(?<=Condition ID = ).{3}",ignore_case = T)),
+                                  `Date Time` = lubridate::ymd_hms(stringr::str_c(Date,Time,sep = " ")),
+                                  Type = Type,
+                                  ANA = ANA,
+                                  Tr = Tr),.progress = TRUE) |>
+      purrr::map(\(df) df |> dplyr::slice(2:n())),dplyr::bind_rows,.progress = TRUE) |>
+      purrr::map(\(df) df |> dplyr::arrange(`Date Time`),.progress = TRUE) |>
+      purrr::map(\(df) df |> tidyr::fill(c(`Subject ID`,`Condition ID`),.direction = "up"),.progress = TRUE) |>
+      purrr::map(\(df) df |> tidyr::fill(`Sensor Serial Number`,.direction = "down"),.progress = TRUE) |>
+      purrr::map(\(df) df |> dplyr::filter(!(!is.na(`Sensor Serial Number`) & is.na(`Date Time`))),.progress = TRUE) |>
+      purrr::map(\(df) df |> dplyr::relocate(`Subject ID`,`Condition ID`,`Sensor Serial Number`,
+                               `Date Time`,Type,ANA,Tr),.progress = TRUE) |>
+      purrr::list_rbind(names_to = "Path")
+
+  } else {
+
+    # All Upload Data
+    purrr::map2(
+      # First List
+      # Import Events
+      events |>
+        purrr::set_names() |>
+        # Consider empty events.csv
+        purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Time = "c", Type = "c",`Col 9` = "c"),col_select = c(Date,Time,Type,`Col 9`)),tibble::tibble()),.progress = TRUE) |>
+        purrr::map(\(df) df |> dplyr::filter(Type == "SENSOR_STARTED (58)"),.progress = TRUE) |>
+        purrr::map(\(df) df |> dplyr::transmute(
+          `Date Time` = lubridate::ymd_hms(stringr::str_c(Date,Time,sep = " ")),
+          Type = Type,
+          `Sensor Serial Number` = `Col 9`),.progress = TRUE),
+
+      purrr::map2(
+        # Second List
+        # Import anaPlus.csv or ana.csv
+        ana |>
+          purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Date = "c", Time = "c", Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,ANA,Tr),n_max = 2),tibble::tibble()),.progress = TRUE),
+        ana |>
+          purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:5,7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","ANA","Tr"),colClasses = c("V2" = "character","V3" = "character","V4" = "character")),tibble::tibble()),.progress = TRUE),
+        dplyr::bind_rows,.progress = TRUE) |> 
+        purrr::map(\(df) df |> dplyr::transmute(
+                                   `Subject ID` =
+                                    dplyr::case_when(
+                                      # Site ID == ADC
+                                      stringr::str_to_upper(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{3}",ignore_case = T))) == "ADC" ~ stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = )[:digit:]{4}",ignore_case = T)),
+                                      # Site ID == 009
+                                      stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{2}",ignore_case = T)) == "00" ~
+                                        stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = 00).{1}",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                                      # Site ID starts with 1
+                                      stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{1}",ignore_case = T)) == "1" ~
+                                        stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{3}",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                                      # Site ID == 081 or 057
+                                      stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{1}",ignore_case = T)) == "0" ~ stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = 0).{2}",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = )[:digit:]+",ignore_case = T))),
+                                      # Site ID mislabeled
+                                      .default = stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = )[:alnum:]+",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = )[:digit:]+",ignore_case = T)))
+                                    ),
+                                  `Condition ID` = stringr::str_extract(df[1,1],stringr::regex("(?<=Condition ID = ).{3}",ignore_case = T)),
+                                  `Date Time` = lubridate::ymd_hms(stringr::str_c(Date,Time,sep = " ")),
+                                  Type = Type,
+                                  ANA = ANA,
+                                  Tr = Tr),.progress = TRUE) |>
+      purrr::map(\(df) df |> dplyr::slice(2:n())),dplyr::bind_rows,.progress = TRUE) |>
+      purrr::map(\(df) df |> dplyr::arrange(`Date Time`),.progress = TRUE) |>
+      purrr::map(\(df) df |> tidyr::fill(c(`Subject ID`,`Condition ID`),.direction = "up"),.progress = TRUE) |>
+      purrr::map(\(df) df |> tidyr::fill(`Sensor Serial Number`,.direction = "down"),.progress = TRUE) |>
+      purrr::map(\(df) df |> dplyr::filter(!(!is.na(`Sensor Serial Number`) & is.na(`Date Time`))),.progress = TRUE) |>
+      purrr::map(\(df) df |> dplyr::relocate(`Subject ID`,`Condition ID`,`Sensor Serial Number`,
+                               `Date Time`,Type,ANA,Tr),.progress = TRUE) |>
+      purrr::list_rbind(names_to = "Path") |>
+      # Remove Duplicated Uploads
+      dplyr::distinct() |>
+      dplyr::arrange(Path,`Subject ID`,`Condition ID`,`Sensor Serial Number`)
+  }
+}
+```
+
+```{r}
+#| warning: false
+a <- mobi_ana(events = events_path_ketone[2],ana = anaplus_path_ketone[2])
+b <- mobi_ana(events = events_path_ketone,ana = anaplus_path_ketone,index = 2)
+```
+
+```{r}
+b[duplicated(b),] |> View()
+```
+
+```{r}
+a |> dplyr::intersect(b |> distinct())
+b |> dplyr::setdiff(a)
+```
+
+
+<!-- Oneminutes -->
+```{r}
+file_list <- dir_ls(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\CDM_23238\004\UUU)"),recurse = T,glob = "*events.csv|*glucPlus.csv|*oneMinutes.csv")
+```
+
+```{r}
+events_path <- file_list[str_detect(file_list,"events.csv") & !str_detect(file_list,"Archive")]
+glucplus_path <- file_list[str_detect(file_list,"glucPlus.csv") & !str_detect(file_list,"Archive")]
+```
+
+```{r}
+      purrr::map2(
+        # Second List
+        # Import gluc.csv
+        glucplus_path[1] |>
+          purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,Gl,St,Tr),n_max = 2),tibble::tibble()),.progress = TRUE),
+        glucplus_path[1] |>
+          purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","Gl","St","Tr"),colClasses = c("V2" = "Date","V4" = "character"),fill = T),tibble::tibble()),.progress = TRUE),
+        dplyr::bind_rows,.progress = TRUE) |> 
+           list_rbind() |>  
+           View()
+```
+
+```{r}
+apol <- function(events, gluc, index = NULL) {
+
+  # Individual File
+  if (is.numeric(index)) {
+    purrr::map2(
+      # First List
+      # Import Events
+      events[index] |>
+        purrr::set_names() |>
+        # Consider empty events.csv
+        purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(`Col 9` = "c"),col_select = c(Date,Time,Type,`Col 9`)),tibble::tibble()),.progress = TRUE) |>
+        purrr::map(\(df) df |> dplyr::filter(Type == "SENSOR_STARTED (58)"),.progress = TRUE) |>
+        purrr::map(\(df) df |> dplyr::transmute(
+          `Date Time` = lubridate::ymd_hms(stringr::str_c(Date,Time,sep = " ")),
+           Type = Type,
+          `Sensor Serial Number` = `Col 9`),.progress = TRUE),
+        # Replaced Sensors Only
+        # map(\(df) df |> slice_max(`Date Time`,n = 1)),
+
+      purrr::map2(
+        # Second List
+        # Import gluc.csv
+        gluc[index] |>
+          purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,Gl,St,Tr),n_max = 2),tibble::tibble()),.progress = TRUE),
+        gluc[index] |>
+          purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","Gl","St","Tr"),colClasses = c("V2" = "Date","V4" = "character"),fill = T),tibble::tibble()),.progress = TRUE),
+        dplyr::bind_rows,.progress = TRUE) |>
+        purrr::map(\(df) df |> dplyr::transmute(`Subject ID` =
+                                    dplyr::case_when(
+                                      # Site ID == ADC
+                                      stringr::str_to_upper(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{3}",ignore_case = T))) == "ADC" ~ stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = )[:digit:]{4}",ignore_case = T)),
+                                      # Site ID == 009
+                                      stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{2}",ignore_case = T)) == "00" ~
+                                        stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = 00).{1}",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                                      # Site ID starts with 1
+                                      stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{1}",ignore_case = T)) == "1" ~
+                                        stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{3}",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                                      # Site ID == 081 or 057
+                                      stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{1}",ignore_case = T)) == "0" ~ stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = 0).{2}",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = )[:digit:]+",ignore_case = T))),
+                                      # Site ID mislabeled
+                                      .default = stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = )[:alnum:]+",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = )[:digit:]+",ignore_case = T)))
+                                    ),
+                                  `Condition ID` = stringr::str_extract(df[1,1],stringr::regex("(?<=Condition ID = ).{3}",ignore_case = T)),
+                                  `Reader ID` = stringr::str_extract(df[2,1],stringr::regex("(?<=\\s).{13}",ignore_case = T)),
+                                  `Date Time` = lubridate::ymd_hms(stringr::str_c(Date,Time,sep = " ")),
+                                   Type = Type,
+                                   Gl = Gl,
+                                   St = St,
+                                   Tr = Tr),.progress = TRUE) |>
+      purrr::map(\(df) df |> dplyr::slice(3:n()),.progress = TRUE),dplyr::bind_rows,.progress = TRUE) |>
+      purrr::map(\(df) df |> dplyr::arrange(`Date Time`),.progress = TRUE) |>
+      purrr::map(\(df) df |> tidyr::fill(c(`Subject ID`,`Condition ID`,`Reader ID`),.direction = "up"),.progress = TRUE) |>
+      purrr::map(\(df) df |> tidyr::fill(`Sensor Serial Number`,.direction = "down"),.progress = TRUE) |>
+      purrr::map(\(df) df |> dplyr::relocate(`Subject ID`,`Condition ID`,`Sensor Serial Number`,
+                               `Reader ID`,`Date Time`,Type,Gl,St,Tr),.progress = TRUE) |>
+      purrr::list_rbind(names_to = "Path")
+
+  } else {
+
+    # All Upload Data
+    purrr::map2(
+      # First List
+      # Import Events
+      events |>
+        purrr::set_names() |>
+        # Consider empty events.csv
+        purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(`Col 9` = "c"),col_select = c(Date,Time,Type,`Col 9`)),tibble::tibble()),.progress = TRUE) |>
+        purrr::map(\(df) df |> dplyr::filter(Type == "SENSOR_STARTED (58)"),.progress = TRUE) |>
+        purrr::map(\(df) df |> dplyr::transmute(
+          `Date Time` = lubridate::ymd_hms(stringr::str_c(Date,Time,sep = " ")),
+           Type = Type,
+          `Sensor Serial Number` = `Col 9`),.progress = TRUE),
+        # Replaced Sensors Only
+        # map(\(df) df |> slice_max(`Date Time`,n = 1)),
+
+      purrr::map2(
+        # Second List
+        # Import gluc.csv
+        gluc |>
+          purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,Gl,St,Tr),n_max = 2),tibble::tibble()),.progress = TRUE),
+        gluc |>
+          purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","Gl","St","Tr"),colClasses = c("V2" = "Date","V4" = "character"),fill = T),tibble::tibble()),.progress = TRUE),
+        bind_rows,.progress = TRUE) |>
+        purrr::map(\(df) df |> dplyr::transmute(`Subject ID` =
+                                  dplyr::case_when(
+                                      # Site ID == ADC
+                                    stringr::str_to_upper(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{3}",ignore_case = T))) == "ADC" ~ stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = )[:digit:]{4}",ignore_case = T)),
+                                      # Site ID == 009
+                                    stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{2}",ignore_case = T)) == "00" ~
+                                      stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = 00).{1}",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                                      # Site ID starts with 1
+                                    stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{1}",ignore_case = T)) == "1" ~
+                                      stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{3}",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                                      # Site ID == 081 or 057
+                                    stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{1}",ignore_case = T)) == "0" ~ stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = 0).{2}",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = )[:digit:]+",ignore_case = T))),
+                                      # Site ID mislabeled
+                                      .default = stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = )[:alnum:]+",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = )[:digit:]+",ignore_case = T)))
+                                    ),
+                                  `Condition ID` = stringr::str_extract(df[1,1],stringr::regex("(?<=Condition ID = ).{3}",ignore_case = T)),
+                                  `Reader ID` = stringr::str_extract(df[2,1],stringr::regex("(?<=\\s).{13}",ignore_case = T)),
+                                  `Date Time` = lubridate::ymd_hms(stringr::str_c(Date,Time,sep = " ")),
+                                   Type = Type,
+                                   Gl = Gl,
+                                   St = St,
+                                   Tr = Tr),.progress = TRUE) |>
+      purrr::map(\(df) df |> dplyr::slice(3:n()),.progress = TRUE),dplyr::bind_rows,.progress = TRUE) |>
+      purrr::map(\(df) df |> dplyr::arrange(`Date Time`),.progress = TRUE) |>
+      purrr::map(\(df) df |> tidyr::fill(c(`Subject ID`,`Condition ID`,`Reader ID`),.direction = "up"),.progress = TRUE) |>
+      purrr::map(\(df) df |> tidyr::fill(`Sensor Serial Number`,.direction = "down"),.progress = TRUE) |>
+      purrr::map(\(df) df |> dplyr::relocate(`Subject ID`,`Condition ID`,`Sensor Serial Number`,
+                               `Reader ID`,`Date Time`,Type,Gl,St,Tr),.progress = TRUE) |>
+      purrr::list_rbind(names_to = "Path") |>
+      # Remove Duplicated Uploads
+      dplyr::distinct() |>
+      dplyr::arrange(Path,`Subject ID`,`Condition ID`,`Sensor Serial Number`)
+  }
+}
+```
+
+```{r}
+#| warning: false
+apol(events = events_path,gluc = glucplus_path) |> View()
+```
+
