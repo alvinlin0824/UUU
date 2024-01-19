@@ -114,7 +114,7 @@ mobi_anaPlus <- function(events, ana, index = NULL) {
                                              `Date Time`,Type,ANA,Tr),.progress = TRUE) |>
       purrr::list_rbind(names_to = "Path") |>
       # Remove Duplicated Uploads
-      dplyr::distinct() |>
+      # dplyr::distinct() |>
       dplyr::arrange(Path,`Subject ID`,`Condition ID`,`Sensor Serial Number`)
   }
 }
