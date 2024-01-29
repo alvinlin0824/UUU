@@ -3,6 +3,8 @@
 export(PairBg)
 export(apol)
 export(atna)
+export(convert_UID_to_sensor_serial_number)
+export(convert_sensor_serial_number_to_UID)
 export(diff_measure)
 export(events)
 export(fct_case_when)
