@@ -4,9 +4,11 @@
 \alias{oneminutes}
 \title{Import oneMinutes csv upload data}
 \usage{
-oneminutes(one_minutes, index = NULL)
+oneminutes(events, one_minutes, index = NULL)
 }
 \arguments{
+\item{events}{File path of events.csv.}
+
 \item{one_minutes}{File path of oneMinutes.csv.}
 
 \item{index}{Index to get an individual or specific upload. Default is NULL.}
