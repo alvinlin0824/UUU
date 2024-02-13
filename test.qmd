@@ -35,7 +35,6 @@ gluc_path <- file_list[str_detect(file_list,"gluc") & !str_detect(file_list,rege
 atna1(events = events_path,gluc = gluc_path,index = 1) |> View()
 ```
 
-
 ```{r}
 atna1 <- function(events, gluc, index = NULL) {
 
@@ -155,7 +154,6 @@ atna1 <- function(events, gluc, index = NULL) {
   }
 }
 ```
-
 
 ```{r}
 library(UUU)
@@ -892,8 +890,8 @@ a |> dplyr::intersect(b |> distinct())
 b |> dplyr::setdiff(a)
 ```
 
-
 <!-- Oneminutes -->
+
 ```{r}
 file_list <- dir_ls(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\CDM_23238\004\UUU)"),recurse = T,glob = "*events.csv|*glucPlus.csv|*oneMinutes.csv")
 ```
@@ -1039,5 +1037,83 @@ apol <- function(events, gluc, index = NULL) {
 ```{r}
 #| warning: false
 apol(events = events_path,gluc = glucplus_path) |> View()
+```
+
+<!-- Sibionics -->
+\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23241\SE01\UploadData\SiBionics
+\\wf00168p.oneabbott.com\data1\CDM\ADC-US-PMS-22222\UploadData\SiBionics\083-IDR
+```{r}
+sib_list <- dir_ls(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-PMS-22222\UploadData\SiBionics\083-IDR)"),recurse = T,glob = "*xlsx|*csv")
+sib_path <- sib_list[!str_detect(sib_list,regex("Transfers",ignore_case = T))]
+```
+
+\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23241\SE01\UploadData\SiBionics\0830001
+//wf00168p.oneabbott.com/data1/CDM/ADC-US-PMS-22222/UploadData/SiBionics/083-IDR/0830002/FV/0830002_SiSensingCGM-LT22050X74-01.11.00.00.xlsx
+```{r}
+sibonics <- function(sibonics_path, index = NULL){
+
+if (is.numeric(index)) {
+   if(str_detect(sibonics_path[index],".xlsx")){
+# .xlsx
+sibonics_path[index][str_detect(sibonics_path[index],".xlsx")] |>
+       set_names() |>
+       map(\(path) readxl::read_excel(path,col_names = T,col_types = c("guess","guess"))) |>
+       list_rbind(names_to = "Path") |>
+       transmute(Path = Path,
+                 `Subject ID` = str_extract(Path,"(?<=0)[:digit:]{6}"),
+                 `Date Time` = ymd_hm(血糖时间),
+                  Gl = as.numeric(na_if(血糖值,"异常")))
+   } else {
+# .csv
+sibonics_path[index][str_detect(sibonics_path[index],".csv")] |> 
+  set_names() |>
+        map(\(path) vroom::vroom(path,delim = ",",show_col_types = F,col_select = c(ast,t,name,v,vSecond))) |>
+        list_rbind(names_to = "Path") |> 
+        mutate(`Subject ID` = str_extract(Path,"(?<=0)[:digit:]{6}"),
+               `Date Time` = floor_date(as_datetime(t/1000,tz = "UTC"),"min"),
+                Gl = v) |> 
+        # One-hour Warn up
+        filter(`Date Time` >= first(`Date Time`) + dminutes(59),.by = `Subject ID`) |> 
+        # Valid Glucose Reading
+        filter(vSecond != 0) |> 
+        # Assign abnormal
+        transmute(Path = Path,
+                 `Subject ID` = `Subject ID`,
+                 `Date Time` = `Date Time`,
+                  Gl = case_when(ast == 2 ~ NA,
+                                .default = Gl))
+   }
+} else {
+    # .xlsx
+sibonics_path[str_detect(sibonics_path,".xlsx")] |>
+       set_names() |>
+       map(\(path) readxl::read_excel(path,col_names = T,col_types = c("guess","guess"))) |>
+       list_rbind(names_to = "Path") |>
+       transmute(Path = Path,
+                 `Subject ID` = str_extract(Path,"(?<=0)[:digit:]{6}"),
+                 `Date Time` = ymd_hm(血糖时间),
+                  Gl = as.numeric(na_if(血糖值,"异常"))) |> 
+      bind_rows(
+        # .csv
+sibonics_path[str_detect(sibonics_path,".csv")] |> 
+  set_names() |>
+        map(\(path) vroom::vroom(path,delim = ",",show_col_types = F,col_select = c(ast,t,name,v,vSecond))) |>
+        list_rbind(names_to = "Path") |> 
+        mutate(`Subject ID` = str_extract(Path,"(?<=0)[:digit:]{6}"),
+               `Date Time` = floor_date(as_datetime(t/1000,tz = "UTC"),"min"),
+                Gl = v) |> 
+        # One-hour Warn up
+        filter(`Date Time` >= first(`Date Time`) + dminutes(59),.by = `Subject ID`) |> 
+        # Valid Glucose Reading
+        filter(vSecond != 0) |> 
+        # Assign abnormal
+        transmute(Path = Path,
+                 `Subject ID` = `Subject ID`,
+                 `Date Time` = `Date Time`,
+                  Gl = case_when(ast == 2 ~ NA,
+                                .default = Gl))) |> 
+        arrange(`Subject ID`)
+  }
+}
 ```
 
