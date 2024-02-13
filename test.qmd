@@ -1043,14 +1043,14 @@ apol(events = events_path,gluc = glucplus_path) |> View()
 \\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23241\SE01\UploadData\SiBionics
 \\wf00168p.oneabbott.com\data1\CDM\ADC-US-PMS-22222\UploadData\SiBionics\083-IDR
 ```{r}
-sib_list <- dir_ls(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-PMS-22222\UploadData\SiBionics\083-IDR)"),recurse = T,glob = "*xlsx|*csv")
+sib_list <- dir_ls(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23241\SE01\UploadData\SiBionics)"),recurse = T,glob = "*xlsx|*csv")
 sib_path <- sib_list[!str_detect(sib_list,regex("Transfers",ignore_case = T))]
 ```
 
 \\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23241\SE01\UploadData\SiBionics\0830001
 //wf00168p.oneabbott.com/data1/CDM/ADC-US-PMS-22222/UploadData/SiBionics/083-IDR/0830002/FV/0830002_SiSensingCGM-LT22050X74-01.11.00.00.xlsx
 ```{r}
-sibonics <- function(sibonics_path, index = NULL){
+sibonics1 <- function(sibonics_path, index = NULL){
 
 if (is.numeric(index)) {
    if(str_detect(sibonics_path[index],".xlsx")){
@@ -1067,7 +1067,7 @@ sibonics_path[index][str_detect(sibonics_path[index],".xlsx")] |>
 # .csv
 sibonics_path[index][str_detect(sibonics_path[index],".csv")] |> 
   set_names() |>
-        map(\(path) vroom::vroom(path,delim = ",",show_col_types = F,col_select = c(ast,t,name,v,vSecond))) |>
+         map(possibly(\(path) vroom::vroom(path,delim = ",",show_col_types = F,col_select = c(ast,t,name,v,vSecond),col_types = c(ast = "d", t = "d", v = "d", vSecond = "d")),tibble::tibble()),.progress = TRUE) |>
         list_rbind(names_to = "Path") |> 
         mutate(`Subject ID` = str_extract(Path,"(?<=0)[:digit:]{6}"),
                `Date Time` = floor_date(as_datetime(t/1000,tz = "UTC"),"min"),
@@ -1097,7 +1097,7 @@ sibonics_path[str_detect(sibonics_path,".xlsx")] |>
         # .csv
 sibonics_path[str_detect(sibonics_path,".csv")] |> 
   set_names() |>
-        map(\(path) vroom::vroom(path,delim = ",",show_col_types = F,col_select = c(ast,t,name,v,vSecond))) |>
+        map(possibly(\(path) vroom::vroom(path,delim = ",",show_col_types = F,col_select = c(ast,t,name,v,vSecond),col_types = c(ast = "d", t = "d", v = "d", vSecond = "d")),tibble::tibble()),.progress = TRUE) |>
         list_rbind(names_to = "Path") |> 
         mutate(`Subject ID` = str_extract(Path,"(?<=0)[:digit:]{6}"),
                `Date Time` = floor_date(as_datetime(t/1000,tz = "UTC"),"min"),
@@ -1115,5 +1115,9 @@ sibonics_path[str_detect(sibonics_path,".csv")] |>
         arrange(`Subject ID`)
   }
 }
+```
+
+```{r}
+sibonics1(sibonics_path = sib_path, index = 11) |> View()
 ```
 

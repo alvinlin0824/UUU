@@ -13,7 +13,7 @@ sibonics <- function(sibonics_path, index = NULL){
       # .xlsx
       sibonics_path[index][str_detect(sibonics_path[index],".xlsx")] |>
         set_names() |>
-        map(\(path) readxl::read_excel(path,col_names = T,col_types = c("guess","guess"))) |>
+        map(\(path) readxl::read_excel(path,col_names = T,col_types = c("guess","guess")),.progress = T) |>
         list_rbind(names_to = "Path") |>
         transmute(Path = Path,
                   `Subject ID` = str_extract(Path,"(?<=0)[:digit:]{6}"),
@@ -23,7 +23,7 @@ sibonics <- function(sibonics_path, index = NULL){
       # .csv
       sibonics_path[index][str_detect(sibonics_path[index],".csv")] |>
         set_names() |>
-        map(\(path) vroom::vroom(path,delim = ",",show_col_types = F,col_select = c(ast,t,name,v,vSecond))) |>
+        map(possibly(\(path) vroom::vroom(path,delim = ",",show_col_types = F,col_select = c(ast,t,name,v,vSecond),col_types = c(ast = "d", t = "d", v = "d", vSecond = "d")),tibble::tibble()),.progress = TRUE) |>
         list_rbind(names_to = "Path") |>
         mutate(`Subject ID` = str_extract(Path,"(?<=0)[:digit:]{6}"),
                `Date Time` = floor_date(as_datetime(t/1000,tz = "UTC"),"min"),
@@ -43,7 +43,7 @@ sibonics <- function(sibonics_path, index = NULL){
     # .xlsx
     sibonics_path[str_detect(sibonics_path,".xlsx")] |>
       set_names() |>
-      map(\(path) readxl::read_excel(path,col_names = T,col_types = c("guess","guess"))) |>
+      map(\(path) readxl::read_excel(path,col_names = T,col_types = c("guess","guess")),.progress = T) |>
       list_rbind(names_to = "Path") |>
       transmute(Path = Path,
                 `Subject ID` = str_extract(Path,"(?<=0)[:digit:]{6}"),
@@ -53,7 +53,7 @@ sibonics <- function(sibonics_path, index = NULL){
         # .csv
         sibonics_path[str_detect(sibonics_path,".csv")] |>
           set_names() |>
-          map(\(path) vroom::vroom(path,delim = ",",show_col_types = F,col_select = c(ast,t,name,v,vSecond))) |>
+          map(possibly(\(path) vroom::vroom(path,delim = ",",show_col_types = F,col_select = c(ast,t,name,v,vSecond),col_types = c(ast = "d", t = "d", v = "d", vSecond = "d")),tibble::tibble()),.progress = TRUE) |>
           list_rbind(names_to = "Path") |>
           mutate(`Subject ID` = str_extract(Path,"(?<=0)[:digit:]{6}"),
                  `Date Time` = floor_date(as_datetime(t/1000,tz = "UTC"),"min"),
