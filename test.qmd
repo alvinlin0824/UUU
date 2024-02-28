@@ -11,6 +11,7 @@ execute:
 library(vroom)
 library(fs)
 library(tidyverse)
+library(gt)
 ```
 
 <!-- Atna -->
@@ -1118,6 +1119,138 @@ sibonics_path[str_detect(sibonics_path,".csv")] |>
 ```
 
 ```{r}
-sibonics1(sibonics_path = sib_path, index = 11) |> View()
+sibonics1(sibonics_path = sib_path) |> View()
+```
+<!-- Difference Measures -->
+
+```{r}
+#| label: Import Ap.rds
+Ap <- readRDS(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\Clinical Study Files\Apollo\ADC-US-VAL-21206 iCGM Libre 2\Statistics\Programs\Canada\Datasets\Ap.rds)"))
+```
+
+```{r}
+#| label: difference measure function
+diff_measure_fun <- function(data, ref, cgm, group_var, unit = "mg/dL", reference_breakpoint = TRUE) {
+  
+diff_calculation <- list(Mean = ~ mean(.x, na.rm = T),
+                         SD = ~ sd(.x, na.rm = T),
+                         Median = ~ median(.x, na.rm = T),
+                         Min = ~ min(.x, na.rm = T),
+                         Max = ~ max(.x, na.rm = T),
+                         N = ~ sum(!is.na(.x),na.rm = T))
+df <- data |> 
+      mutate(Difference = {{cgm}} - {{ref}},
+            `Absolute Difference` = abs(Difference),
+            `Relative Difference(%)` = (Difference/{{ref}})*100,
+            `Absolute Relative Difference(%)` = abs(`Relative Difference(%)`))
+
+
+
+if (reference_breakpoint == TRUE) {
+df |>
+   mutate(# Reference Level
+          Level = case_when(round({{ref}} + 0.001) < 100 ~ "<100 mg/dL[5.6 mmol/L]",
+                            .default = ">=100 mg/dL[5.6 mmol/L]")) |>
+   # Overall Reference Level
+   bind_rows(
+             df |>
+             mutate(Level = "Overall Levels (100 mg/dL breakpoint)")
+   ) |>
+   pivot_longer(Difference:`Absolute Relative Difference(%)`,names_to = "Measure") |>
+   mutate(
+          # Factor order Measure
+           Measure = fct_inorder(Measure)) |>
+   # Difference(mg/dL) and Absolute Difference(mg/dL) for Reference Level < 100 mg/dL
+   # Relative Difference(%) and Absolute Relative Difference(%) for Reference Level >= 100 mg/dL
+   filter((Measure %in% c("Difference", "Absolute Difference") &
+          Level %in% c("<100 mg/dL[5.6 mmol/L]", "Overall Levels (100 mg/dL breakpoint)")) |
+          (Measure %in% c("Relative Difference(%)", "Absolute Relative Difference(%)") &
+          Level %in% c(">=100 mg/dL[5.6 mmol/L]", "Overall Levels (100 mg/dL breakpoint)"))) |>
+   # User-Defined group variables
+   group_by(pick({{group_var}})) |>
+   group_by(Measure,.add = TRUE) |>
+   summarise_at(.vars = "value", diff_calculation) |> 
+   ungroup() |> 
+   # Unit
+   mutate(Measure = case_when(
+                  unit == "mg/dL" & Measure %in% c("Difference","Absolute Difference")
+                        ~ str_c(Measure," (",unit,")"),
+                  unit == "mmol/L" & Measure %in% c("Difference","Absolute Difference")
+                        ~ str_c(Measure," (",unit,")"),
+                  .default = Measure
+                        )) |> 
+   gt(groupname_col = c(group_var)) |>
+   cols_align(align = "center") |>
+   fmt_number(columns = Mean:Max,decimals = 1) |>
+   sub_missing(columns = everything(),missing_text = "") |>
+   opt_stylize(style = 6, color = "blue")
+  } else {
+    gt_group_var <- group_var[1:length(group_var) - 1]
+     df |>
+     group_by(pick({{group_var}})) |>
+     summarise(
+      across(c(Difference:`Absolute Relative Difference(%)`),
+              diff_calculation[1:3],.names = "{.col} {.fn}"), N = n(),.groups = "drop") |>
+     relocate(N,.after = last_col()) 
+     # Add noise
+     # mutate(across(contains("Difference"), ~ round(.x + 0.001,1))) |> 
+     # gt(groupname_col = c(gt_group_var))  |>
+     # cols_align(align = "center") |>
+     # tab_spanner(label = str_c("Difference"," (",unit,")"),columns = c("Difference Mean","Difference Median","Difference SD")) |>
+     # tab_spanner(label = str_c("Abs. Difference"," (",unit,")"),columns = c("Absolute Difference Mean","Absolute Difference Median","Absolute Difference SD")) |>
+     # tab_spanner(label = "Relative Difference(%)",columns = c("Relative Difference(%) Mean","Relative Difference(%) Median","Relative Difference(%) SD")) |>
+     # tab_spanner(label = "Absolute Relative Difference(%)",columns = c("Absolute Relative Difference(%) Mean","Absolute Relative Difference(%) Median","Absolute Relative Difference(%) SD")) |>
+     # cols_label(
+     #  `Difference Mean` = "Mean",`Difference Median` = "Median",
+     #  `Difference SD` = "SD",
+     #  `Relative Difference(%) Mean` = "Mean",`Relative Difference(%) Median` = "Median",`Relative Difference(%) SD` = "SD",
+     #  `Absolute Difference Mean` = "Mean",`Absolute Difference Median` = "Median",
+     #  `Absolute Difference SD` =  "SD",`Absolute Relative Difference(%) Mean` = "Mean",
+     #  `Absolute Relative Difference(%) Median` = "Median",
+     #  `Absolute Relative Difference(%) SD` = "SD") |>
+     #   sub_missing(columns = everything(),missing_text = "") |>
+     #   opt_stylize(style = 6, color = "blue")
+   }
+}
+```
+
+```{r}
+Ap |> 
+   select(!c(`Difference(mg/dL)`:`Absolute Relative Difference(%)`)) |> 
+   filter(Day <= 15) |> 
+   filter(between(Gl,40,400)) |> 
+   diff_measure_fun(ref = Reference, cgm = Gl,group_var = c("Age Group","Reference Type","Level"), unit = "mg/dL",reference_breakpoint = T)
+```
+<!-- round(c(0.15,0.25)/0.1)*0.1 -->
+```{r}
+Ap |> 
+   select(!c(`Difference(mg/dL)`:`Absolute Relative Difference(%)`)) |> 
+   filter(Day <= 15) |> 
+   filter(between(Gl,40,400)) |> 
+   diff_measure_fun(ref = Reference, cgm = Gl,group_var = c("Age Group","Reference Type","Ref. Glucose Level"), unit = "mg/dL",reference_breakpoint = F) |> View()
+```
+
+```{r}
+#| label: CGM Difference Measures vs. YSIref
+#| tbl-cap: "CGM Difference Measures vs. YSIref"
+Ap |> 
+   filter(Day <= 15) |> 
+   diff_measure_fun(group_var = c(`Age Group`,`Reference Type`,Level),reference = T)
+```
+
+```{r}
+#| label: CGM Difference Measures by Reference Glucose Level, YSIref
+#| tbl-cap: "CGM Difference Measures by Reference Glucose Level, YSIref"
+Ap |> 
+   filter(Day <= 15) |> 
+   diff_measure_fun(group_var = c(`Age Group`,`Reference Type`,`Ref. Glucose Level`),reference = F)
+```
+
+```{r}
+#| label: CGM Difference Measures by CGM Level, YSIref
+#| tbl-cap: "CGM Difference Measures by CGM Level, YSIref"
+Ap |> 
+   filter(Day <= 15) |> 
+   diff_measure_fun(group_var = c(`Age Group`,`Reference Type`,`CGM Glucose Level`),reference = F)
 ```
 
