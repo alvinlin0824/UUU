@@ -1041,15 +1041,16 @@ apol(events = events_path,gluc = glucplus_path) |> View()
 ```
 
 <!-- Sibionics -->
-\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23241\SE01\UploadData\SiBionics
-\\wf00168p.oneabbott.com\data1\CDM\ADC-US-PMS-22222\UploadData\SiBionics\083-IDR
+
+\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23241\SE01\UploadData\SiBionics \\wf00168p.oneabbott.com\data1\CDM\ADC-US-PMS-22222\UploadData\SiBionics\\083-IDR
+
 ```{r}
 sib_list <- dir_ls(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23241\SE01\UploadData\SiBionics)"),recurse = T,glob = "*xlsx|*csv")
 sib_path <- sib_list[!str_detect(sib_list,regex("Transfers",ignore_case = T))]
 ```
 
-\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23241\SE01\UploadData\SiBionics\0830001
-//wf00168p.oneabbott.com/data1/CDM/ADC-US-PMS-22222/UploadData/SiBionics/083-IDR/0830002/FV/0830002_SiSensingCGM-LT22050X74-01.11.00.00.xlsx
+\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-23241\SE01\UploadData\SiBionics\\0830001 //wf00168p.oneabbott.com/data1/CDM/ADC-US-PMS-22222/UploadData/SiBionics/083-IDR/0830002/FV/0830002_SiSensingCGM-LT22050X74-01.11.00.00.xlsx
+
 ```{r}
 sibonics1 <- function(sibonics_path, index = NULL){
 
@@ -1121,6 +1122,7 @@ sibonics_path[str_detect(sibonics_path,".csv")] |>
 ```{r}
 sibonics1(sibonics_path = sib_path) |> View()
 ```
+
 <!-- Difference Measures -->
 
 ```{r}
@@ -1215,6 +1217,7 @@ diff_calculation <- list(Mean = ~ mean(.x, na.rm = T),
                          Max = ~ max(.x, na.rm = T),
                          N = ~ sum(!is.na(.x),na.rm = T))
 df <- data |> 
+      select(!contains("Difference")) |>
       mutate(Difference = {{cgm}} - {{ref}},
             `Absolute Difference` = abs(Difference),
             `Relative Difference(%)` = (Difference/{{ref}})*100,
@@ -1352,4 +1355,3 @@ Ap |>
    filter(Day <= 15) |> 
    diff_measure_fun(group_var = c(`Age Group`,`Reference Type`,`CGM Glucose Level`),reference = F)
 ```
-

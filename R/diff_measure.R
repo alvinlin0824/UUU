@@ -23,10 +23,11 @@ diff_measure <- function(data, ref, cgm, group_var, unit = "mg/dL", reference_br
                            Max = ~ max(.x, na.rm = T),
                            N = ~ sum(!is.na(.x),na.rm = T))
   df <- data |>
-    mutate(Difference = {{cgm}} - {{ref}},
-           `Absolute Difference` = abs(Difference),
-           `Relative Difference(%)` = (Difference/{{ref}})*100,
-           `Absolute Relative Difference(%)` = abs(`Relative Difference(%)`))
+          select(!contains("Difference")) |>
+          mutate(Difference = {{cgm}} - {{ref}},
+                `Absolute Difference` = abs(Difference),
+                `Relative Difference(%)` = (Difference/{{ref}})*100,
+                `Absolute Relative Difference(%)` = abs(`Relative Difference(%)`))
 
 
 
