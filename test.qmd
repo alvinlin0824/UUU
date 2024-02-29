@@ -1129,8 +1129,85 @@ Ap <- readRDS(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinic
 ```
 
 ```{r}
+#| label: Import BG.rds
+BG <- readRDS(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\Clinical Study Files\Apollo\ADC-US-PMS-22222_SiBionics\Statistics\Programs\Datasets\AL\BG.rds)"))
+Sib <- readRDS(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\Clinical Study Files\Apollo\ADC-US-PMS-22222_SiBionics\Statistics\Programs\Datasets\AL\Sib.rds)"))
+```
+
+```{r}
+#| label: Pair Function
+PAIRBG_fun <- function(data){
+  # BG Strips Data
+  BG %>%
+     # Remove Extreme Reference readings <20 or >500
+     filter(between(Reference,20,500)) %>% 
+     inner_join(
+               # Sensor Data
+               data %>%
+                select(!Path) %>% 
+                mutate(
+                  `Lower Bound` = case_when(Type %in% c("904","906") ~ `Date Time` - dminutes(5),
+                                            .default = `Date Time` - dminutes(8)),
+                  `Upper Bound` = case_when(Type %in% c("904","906") ~ `Date Time` + dminutes(5),
+                                            .default = `Date Time` + dminutes(8))
+                     ),
+                   by = join_by("Subject ID",between(`BG Date Time`,`Lower Bound`,`Upper Bound`)),
+                   multiple = "all"
+                     ) %>%
+      # Select the nearest time
+      group_by(`Subject ID`,`BG Date Time`) %>%
+      arrange(desc(`Date Time`)) %>%
+      slice_min(abs(`BG Date Time` - `Date Time`),n = 1,with_ties = F) %>%
+      ungroup() %>%
+      # Select the nearest time
+      group_by(`Subject ID`,`Date Time`) %>%
+      arrange(desc(`Date Time`)) %>%
+      slice_min(abs(`BG Date Time` - `Date Time`),n = 1,with_ties = F) %>%
+      ungroup() %>%
+      select(!c(contains("Bound")))
+}
+```
+
+```{r}
+#| label: Paired Data
+Ap_mmol <- Sib |> 
+           mutate(eTime = as.numeric(difftime(`Date Time`,first(`Date Time`),units = "days") + 1/24),
+                 Day = floor(eTime) + 1,
+                 Gl_mmol = Gl,
+                 Type = "904",
+                 Sensor = "SiBionics",.by = c(`Subject ID`)) |> 
+          filter(between(Gl,2.2,25.0)) |> 
+      # Real Time Glucose
+      filter(Type == "904") |>
+      group_split(`Subject ID`,Sensor) |>  
+      # New anonymous function
+      map(\(df) PAIRBG_fun(data = df),.progress = T) |>
+      # formula syntax
+      # map(~ PAIRBG_fun(data = .x)) %>%
+      list_rbind() |> 
+      # Row-wise Calculation
+      mutate(Reference_mmol = Reference/18.016,
+            # Reference glucose values < 100 mg/dL
+            `Difference(mmol/L)` = Gl_mmol - Reference_mmol,
+            `Absolute Difference(mmol/L)` = abs(`Difference(mmol/L)`),
+            # Reference glucose values >= 100 mg/dL
+            `Relative Difference(%)` = (`Difference(mmol/L)`/Reference_mmol)*100,
+            `Absolute Relative Difference(%)` = abs(`Relative Difference(%)`),
+            `Glucose Level(mg/dL) [mmol/L]` = UUU::fct_case_when(round(Reference + 0.001) < 54 ~ "<54 [3.0]",
+                           between(round(Reference + 0.001),54,69) ~ "54 to 69 [3.0-3.8]",
+                           between(round(Reference + 0.001),70,180) ~ "70 to 180 [3.9-10.0]",
+                           between(round(Reference + 0.001),181,250) ~ "181 to 250 [10.0-13.9]",
+                                      TRUE ~ ">250 [13.9]"))
+```
+
+
+```{r}
 #| label: difference measure function
 diff_measure_fun <- function(data, ref, cgm, group_var, unit = "mg/dL", reference_breakpoint = TRUE) {
+  
+  round_normal <- function(x, digits){
+    ifelse(x >= 0,round(x + 10^-(digits + 3),digits),round(x - 10^-(digits + 3),digits))
+}
   
 diff_calculation <- list(Mean = ~ mean(.x, na.rm = T),
                          SD = ~ sd(.x, na.rm = T),
@@ -1147,30 +1224,34 @@ df <- data |>
 
 
 if (reference_breakpoint == TRUE) {
+# gt_group_var <- c("Level",group_var)
 df |>
    mutate(# Reference Level
-          Level = case_when(round({{ref}} + 0.001) < 100 ~ "<100 mg/dL[5.6 mmol/L]",
-                            .default = ">=100 mg/dL[5.6 mmol/L]")) |>
+          Level = if (unit == "mg/dL") {
+                  case_when(round({{ref}} + 0.001) < 100 ~ "<100 mg/dL[5.6 mmol/L]",
+                            .default = ">=100 mg/dL[5.6 mmol/L]")}
+                  else if (unit == "mmol/L"){
+                  case_when(round({{ref}} + 0.001,1) < 5.6 ~ "<100 mg/dL[5.6 mmol/L]",
+                            .default = ">=100 mg/dL[5.6 mmol/L]")
+                  })|>
    # Overall Reference Level
    bind_rows(
              df |>
-             mutate(Level = "Overall Levels (100 mg/dL breakpoint)")
+             mutate(Level = "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)")
    ) |>
    pivot_longer(Difference:`Absolute Relative Difference(%)`,names_to = "Measure") |>
-   mutate(
-          # Factor order Measure
-           Measure = fct_inorder(Measure)) |>
-   # Difference(mg/dL) and Absolute Difference(mg/dL) for Reference Level < 100 mg/dL
-   # Relative Difference(%) and Absolute Relative Difference(%) for Reference Level >= 100 mg/dL
+   # Factor order Measure
    filter((Measure %in% c("Difference", "Absolute Difference") &
-          Level %in% c("<100 mg/dL[5.6 mmol/L]", "Overall Levels (100 mg/dL breakpoint)")) |
+          Level %in% c("<100 mg/dL[5.6 mmol/L]", "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)")) |
           (Measure %in% c("Relative Difference(%)", "Absolute Relative Difference(%)") &
-          Level %in% c(">=100 mg/dL[5.6 mmol/L]", "Overall Levels (100 mg/dL breakpoint)"))) |>
+          Level %in% c(">=100 mg/dL[5.6 mmol/L]", "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)"))) |>
+   group_by(pick(Level,Measure)) |>
    # User-Defined group variables
-   group_by(pick({{group_var}})) |>
-   group_by(Measure,.add = TRUE) |>
+   group_by(pick({{group_var}}),.add = TRUE) |>
    summarise_at(.vars = "value", diff_calculation) |> 
    ungroup() |> 
+   # Round Number
+   mutate(across(c(Mean:Max), ~ round_normal(.x,1))) |>  
    # Unit
    mutate(Measure = case_when(
                   unit == "mg/dL" & Measure %in% c("Difference","Absolute Difference")
@@ -1178,8 +1259,12 @@ df |>
                   unit == "mmol/L" & Measure %in% c("Difference","Absolute Difference")
                         ~ str_c(Measure," (",unit,")"),
                   .default = Measure
-                        )) |> 
-   gt(groupname_col = c(group_var)) |>
+                        ),
+          Level = factor(Level, levels = c("<100 mg/dL[5.6 mmol/L]",">=100 mg/dL[5.6 mmol/L]", "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)")),
+          Measure = factor(Measure, levels = c("Difference (mg/dL)","Absolute Difference (mg/dL)","Difference (mmol/L)","Absolute Difference (mmol/L)","Relative Difference(%)","Absolute Relative Difference(%)"))) |> 
+   arrange(pick(Level,Measure)) |> 
+   arrange(pick({{group_var}})) |> 
+   gt(groupname_col = c(group_var,"Level")) |>
    cols_align(align = "center") |>
    fmt_number(columns = Mean:Max,decimals = 1) |>
    sub_missing(columns = everything(),missing_text = "") |>
@@ -1191,27 +1276,38 @@ df |>
      summarise(
       across(c(Difference:`Absolute Relative Difference(%)`),
               diff_calculation[1:3],.names = "{.col} {.fn}"), N = n(),.groups = "drop") |>
-     relocate(N,.after = last_col()) 
-     # Add noise
-     # mutate(across(contains("Difference"), ~ round(.x + 0.001,1))) |> 
-     # gt(groupname_col = c(gt_group_var))  |>
-     # cols_align(align = "center") |>
-     # tab_spanner(label = str_c("Difference"," (",unit,")"),columns = c("Difference Mean","Difference Median","Difference SD")) |>
-     # tab_spanner(label = str_c("Abs. Difference"," (",unit,")"),columns = c("Absolute Difference Mean","Absolute Difference Median","Absolute Difference SD")) |>
-     # tab_spanner(label = "Relative Difference(%)",columns = c("Relative Difference(%) Mean","Relative Difference(%) Median","Relative Difference(%) SD")) |>
-     # tab_spanner(label = "Absolute Relative Difference(%)",columns = c("Absolute Relative Difference(%) Mean","Absolute Relative Difference(%) Median","Absolute Relative Difference(%) SD")) |>
-     # cols_label(
-     #  `Difference Mean` = "Mean",`Difference Median` = "Median",
-     #  `Difference SD` = "SD",
-     #  `Relative Difference(%) Mean` = "Mean",`Relative Difference(%) Median` = "Median",`Relative Difference(%) SD` = "SD",
-     #  `Absolute Difference Mean` = "Mean",`Absolute Difference Median` = "Median",
-     #  `Absolute Difference SD` =  "SD",`Absolute Relative Difference(%) Mean` = "Mean",
-     #  `Absolute Relative Difference(%) Median` = "Median",
-     #  `Absolute Relative Difference(%) SD` = "SD") |>
-     #   sub_missing(columns = everything(),missing_text = "") |>
-     #   opt_stylize(style = 6, color = "blue")
+     relocate(N,.after = last_col()) |>   
+     # Round Number
+     mutate(across(contains(c("Mean","Median")), ~ round_normal(.x,1)),
+            across(contains(c("SD")), ~ round_normal(.x,2))) |> 
+     gt(groupname_col = c(gt_group_var))  |>
+     cols_align(align = "center") |>
+     tab_spanner(label = str_c("Difference"," (",unit,")"),columns = c("Difference Mean","Difference Median","Difference SD")) |>
+     tab_spanner(label = str_c("Abs. Difference"," (",unit,")"),columns = c("Absolute Difference Mean","Absolute Difference Median","Absolute Difference SD")) |>
+     tab_spanner(label = "Relative Difference(%)",columns = c("Relative Difference(%) Mean","Relative Difference(%) Median","Relative Difference(%) SD")) |>
+     tab_spanner(label = "Absolute Relative Difference(%)",columns = c("Absolute Relative Difference(%) Mean","Absolute Relative Difference(%) Median","Absolute Relative Difference(%) SD")) |>
+     fmt_number(columns = contains(c("Mean","Median")),decimals = 1) |>
+     fmt_number(columns = contains(c("SD")),decimals = 2) |>
+     cols_label(
+      `Difference Mean` = "Mean",`Difference Median` = "Median",
+      `Difference SD` = "SD",
+      `Relative Difference(%) Mean` = "Mean",`Relative Difference(%) Median` = "Median",`Relative Difference(%) SD` = "SD",
+      `Absolute Difference Mean` = "Mean",`Absolute Difference Median` = "Median",
+      `Absolute Difference SD` =  "SD",`Absolute Relative Difference(%) Mean` = "Mean",
+      `Absolute Relative Difference(%) Median` = "Median",
+      `Absolute Relative Difference(%) SD` = "SD") |>
+       sub_missing(columns = everything(),missing_text = "") |>
+       opt_stylize(style = 6, color = "blue")
    }
 }
+```
+
+```{r}
+Ap_mmol |>
+   select(!contains("Difference")) |> 
+   # filter(Day <= 15) |> 
+   # filter(between(Gl,40,400)) |> 
+   diff_measure_fun(ref = Reference_mmol, cgm = Gl, group_var = c("Sensor","Glucose Level(mg/dL) [mmol/L]"), unit = "mmol/L",reference_breakpoint = F)
 ```
 
 ```{r}
@@ -1219,15 +1315,15 @@ Ap |>
    select(!c(`Difference(mg/dL)`:`Absolute Relative Difference(%)`)) |> 
    filter(Day <= 15) |> 
    filter(between(Gl,40,400)) |> 
-   diff_measure_fun(ref = Reference, cgm = Gl,group_var = c("Age Group","Reference Type","Level"), unit = "mg/dL",reference_breakpoint = T)
+   diff_measure_fun(ref = Reference, cgm = Gl,group_var = c("Age Group","Reference Type"), unit = "mg/dL",reference_breakpoint = T)
 ```
-<!-- round(c(0.15,0.25)/0.1)*0.1 -->
+
 ```{r}
 Ap |> 
    select(!c(`Difference(mg/dL)`:`Absolute Relative Difference(%)`)) |> 
    filter(Day <= 15) |> 
    filter(between(Gl,40,400)) |> 
-   diff_measure_fun(ref = Reference, cgm = Gl,group_var = c("Age Group","Reference Type","Ref. Glucose Level"), unit = "mg/dL",reference_breakpoint = F) |> View()
+   diff_measure_fun(ref = Reference, cgm = Gl,group_var = c("Age Group","Reference Type","CGM Glucose Level"), unit = "mg/dL",reference_breakpoint = F) 
 ```
 
 ```{r}
