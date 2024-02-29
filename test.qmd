@@ -1200,7 +1200,6 @@ Ap_mmol <- Sib |>
                                       TRUE ~ ">250 [13.9]"))
 ```
 
-
 ```{r}
 #| label: difference measure function
 diff_measure_fun <- function(data, ref, cgm, group_var, unit = "mg/dL", reference_breakpoint = TRUE) {
@@ -1235,12 +1234,9 @@ df |>
                             .default = ">=100 mg/dL[5.6 mmol/L]")
                   })|>
    # Overall Reference Level
-   bind_rows(
-             df |>
-             mutate(Level = "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)")
-   ) |>
+   bind_rows(df |>
+             mutate(Level = "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)")) |>
    pivot_longer(Difference:`Absolute Relative Difference(%)`,names_to = "Measure") |>
-   # Factor order Measure
    filter((Measure %in% c("Difference", "Absolute Difference") &
           Level %in% c("<100 mg/dL[5.6 mmol/L]", "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)")) |
           (Measure %in% c("Relative Difference(%)", "Absolute Relative Difference(%)") &
@@ -1311,6 +1307,13 @@ Ap_mmol |>
 ```
 
 ```{r}
+haven::read_sas("adc21206_paired_ca.sas7bdat") |> 
+   filter(nday <= 15) |> 
+   filter(between(cgm_rslt,40,400)) |> 
+   diff_measure_fun(ref = ref_rslt, cgm = cgm_rslt,group_var = c("age_grp","ref_type"), unit = "mg/dL",reference_breakpoint = F)
+```
+
+```{r}
 Ap |> 
    select(!c(`Difference(mg/dL)`:`Absolute Relative Difference(%)`)) |> 
    filter(Day <= 15) |> 
@@ -1323,7 +1326,7 @@ Ap |>
    select(!c(`Difference(mg/dL)`:`Absolute Relative Difference(%)`)) |> 
    filter(Day <= 15) |> 
    filter(between(Gl,40,400)) |> 
-   diff_measure_fun(ref = Reference, cgm = Gl,group_var = c("Age Group","Reference Type","CGM Glucose Level"), unit = "mg/dL",reference_breakpoint = F) 
+   diff_measure_fun(ref = Reference, cgm = Gl,group_var = c("Age Group","Reference Type","Ref. Glucose Level"), unit = "mg/dL",reference_breakpoint = F) 
 ```
 
 ```{r}

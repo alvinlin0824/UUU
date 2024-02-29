@@ -1,78 +1,106 @@
 #' Difference Measures Analysis
 #'
 #' @param data Paired Data Set
-#' @param reference Either TRUE or FALSE
 #' @param group_var Any Categorical Variables
+#' @param ref Provide Reference Readings such as YSI or BG
+#' @param cgm Provide Sensor Readings such as Gl or ANA
+#' @param unit Either mg/dL or mmol/L. Default is mg/dL
+#' @param reference_breakpoint Default is TRUE
 #'
 #' @return Gt Table
 #' @export
 
-diff_measure <- function(data, reference, group_var) {
+diff_measure <- function(data, ref, cgm, group_var, unit = "mg/dL", reference_breakpoint = TRUE) {
+
+  round_normal <- function(x, digits){
+    ifelse(x >= 0,round(x + 10^-(digits + 3),digits),round(x - 10^-(digits + 3),digits))
+  }
 
   diff_calculation <- list(Mean = ~ mean(.x, na.rm = T),
-                           Median = ~ median(.x, na.rm = T),
                            SD = ~ sd(.x, na.rm = T),
+                           Median = ~ median(.x, na.rm = T),
                            Min = ~ min(.x, na.rm = T),
                            Max = ~ max(.x, na.rm = T),
                            N = ~ sum(!is.na(.x),na.rm = T))
+  df <- data |>
+    mutate(Difference = {{cgm}} - {{ref}},
+           `Absolute Difference` = abs(Difference),
+           `Relative Difference(%)` = (Difference/{{ref}})*100,
+           `Absolute Relative Difference(%)` = abs(`Relative Difference(%)`))
 
-  if (reference == TRUE) {
-    data |>
-      # Filter GM values
-      dplyr::filter(dplyr::between(Gl,40/18.016,400/18.016)) |>
-      dplyr::mutate(# Reference Level
-        Level = dplyr::case_when(round(Reference + 0.001,1) < 5.6 ~ "<5.6 mmol/L [100 mg/dL]",
-                                 .default = ">=5.6 mmol/L [100 mg/dL]")) |>
+
+
+  if (reference_breakpoint == TRUE) {
+    # gt_group_var <- c("Level",group_var)
+    df |>
+      mutate(# Reference Level
+        Level = if (unit == "mg/dL") {
+          case_when(round({{ref}} + 0.001) < 100 ~ "<100 mg/dL[5.6 mmol/L]",
+                    .default = ">=100 mg/dL[5.6 mmol/L]")}
+        else if (unit == "mmol/L"){
+          case_when(round({{ref}} + 0.001,1) < 5.6 ~ "<100 mg/dL[5.6 mmol/L]",
+                    .default = ">=100 mg/dL[5.6 mmol/L]")
+        })|>
       # Overall Reference Level
-      dplyr::bind_rows(
-        data |>
-          # Filter GM values
-          dplyr::filter(dplyr::between(Gl,40/18.016,400/18.016)) |>
-          dplyr::mutate(Level = "Overall Levels (5.6 mmol/L [100 mg/dL] breakpoint)")
-      ) |>
-      tidyr::pivot_longer(`Difference(mmol/L)`:`Absolute Relative Difference(%)`,names_to = "Measure") |>
-      dplyr::mutate(
-        # Factor order Measure
-        Measure = forcats::fct_inorder(Measure)) |>
-      # Difference(mg/dL) and Absolute Difference(mg/dL) for Reference Level < 100 mg/dL
-      # Relative Difference(%) and Absolute Relative Difference(%) for Reference Level >= 100 mg/dL
-      dplyr::filter((Measure %in% c("Difference(mmol/L)", "Absolute Difference(mmol/L)") &
-                Level %in% c("<5.6 mmol/L [100 mg/dL]", "Overall Levels (5.6 mmol/L [100 mg/dL] breakpoint)")) |
+      bind_rows(df |>
+                  mutate(Level = "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)")) |>
+      pivot_longer(Difference:`Absolute Relative Difference(%)`,names_to = "Measure") |>
+      filter((Measure %in% c("Difference", "Absolute Difference") &
+                Level %in% c("<100 mg/dL[5.6 mmol/L]", "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)")) |
                (Measure %in% c("Relative Difference(%)", "Absolute Relative Difference(%)") &
-                  Level %in% c(">=5.6 mmol/L [100 mg/dL]", "Overall Levels (5.6 mmol/L [100 mg/dL] breakpoint)"))) |>
+                  Level %in% c(">=100 mg/dL[5.6 mmol/L]", "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)"))) |>
+      group_by(pick(Level,Measure)) |>
       # User-Defined group variables
-      dplyr::group_by(dplyr::pick({{group_var}})) |>
-      dplyr::group_by(Measure,.add = TRUE) |>
-      dplyr::summarise_at(.vars = "value", diff_calculation) |>
-      gt::gt() |>
+      group_by(pick({{group_var}}),.add = TRUE) |>
+      summarise_at(.vars = "value", diff_calculation) |>
+      ungroup() |>
+      # Round Number
+      mutate(across(c(Mean:Max), ~ round_normal(.x,1))) |>
+      # Unit
+      mutate(Measure = case_when(
+        unit == "mg/dL" & Measure %in% c("Difference","Absolute Difference")
+        ~ str_c(Measure," (",unit,")"),
+        unit == "mmol/L" & Measure %in% c("Difference","Absolute Difference")
+        ~ str_c(Measure," (",unit,")"),
+        .default = Measure
+      ),
+      Level = factor(Level, levels = c("<100 mg/dL[5.6 mmol/L]",">=100 mg/dL[5.6 mmol/L]", "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)")),
+      Measure = factor(Measure, levels = c("Difference (mg/dL)","Absolute Difference (mg/dL)","Difference (mmol/L)","Absolute Difference (mmol/L)","Relative Difference(%)","Absolute Relative Difference(%)"))) |>
+      arrange(pick(Level,Measure)) |>
+      arrange(pick({{group_var}})) |>
+      gt::gt(groupname_col = c(group_var,"Level")) |>
       gt::cols_align(align = "center") |>
       gt::fmt_number(columns = Mean:Max,decimals = 1) |>
+      gt::sub_missing(columns = everything(),missing_text = "") |>
       gt::opt_stylize(style = 6, color = "blue")
   } else {
-    data |>
-      # Filter GM values
-      dplyr::filter(dplyr::between(Gl,40/18.016,400/18.016)) |>
-      dplyr::group_by(dplyr::pick({{group_var}})) |>
-      dplyr::summarise(
-        dplyr::across(c(`Difference(mmol/L)`:`Absolute Relative Difference(%)`),
+    gt_group_var <- group_var[1:length(group_var) - 1]
+    df |>
+      group_by(pick({{group_var}})) |>
+      summarise(
+        across(c(Difference:`Absolute Relative Difference(%)`),
                diff_calculation[1:3],.names = "{.col} {.fn}"), N = n(),.groups = "drop") |>
-      dplyr::relocate(N,.after = last_col()) |>
-      gt::gt()  |>
+      relocate(N,.after = last_col()) |>
+      # Round Number
+      mutate(across(contains(c("Mean","Median")), ~ round_normal(.x,1)),
+             across(contains(c("SD")), ~ round_normal(.x,2))) |>
+      gt::gt(groupname_col = c(gt_group_var))  |>
       gt::cols_align(align = "center") |>
-      gt::tab_spanner(label = "Difference(mmol/L)",columns = c("Difference(mmol/L) Mean","Difference(mmol/L) Median","Difference(mmol/L) SD")) |>
-      gt::tab_spanner(label = "Abs. Difference (mmol/L)",columns = c("Absolute Difference(mmol/L) Mean","Absolute Difference(mmol/L) Median","Absolute Difference(mmol/L) SD")) |>
+      gt::tab_spanner(label = str_c("Difference"," (",unit,")"),columns = c("Difference Mean","Difference Median","Difference SD")) |>
+      gt::tab_spanner(label = str_c("Abs. Difference"," (",unit,")"),columns = c("Absolute Difference Mean","Absolute Difference Median","Absolute Difference SD")) |>
       gt::tab_spanner(label = "Relative Difference(%)",columns = c("Relative Difference(%) Mean","Relative Difference(%) Median","Relative Difference(%) SD")) |>
       gt::tab_spanner(label = "Absolute Relative Difference(%)",columns = c("Absolute Relative Difference(%) Mean","Absolute Relative Difference(%) Median","Absolute Relative Difference(%) SD")) |>
       gt::fmt_number(columns = contains(c("Mean","Median")),decimals = 1) |>
       gt::fmt_number(columns = contains(c("SD")),decimals = 2) |>
       gt::cols_label(
-        `Difference(mmol/L) Mean` = "Mean",`Difference(mmol/L) Median` = "Median",
-        `Difference(mmol/L) SD` = "SD",
+        `Difference Mean` = "Mean",`Difference Median` = "Median",
+        `Difference SD` = "SD",
         `Relative Difference(%) Mean` = "Mean",`Relative Difference(%) Median` = "Median",`Relative Difference(%) SD` = "SD",
-        `Absolute Difference(mmol/L) Mean` = "Mean",`Absolute Difference(mmol/L) Median` = "Median",
-        `Absolute Difference(mmol/L) SD` =  "SD",`Absolute Relative Difference(%) Mean` = "Mean",
+        `Absolute Difference Mean` = "Mean",`Absolute Difference Median` = "Median",
+        `Absolute Difference SD` =  "SD",`Absolute Relative Difference(%) Mean` = "Mean",
         `Absolute Relative Difference(%) Median` = "Median",
         `Absolute Relative Difference(%) SD` = "SD") |>
+      gt::sub_missing(columns = everything(),missing_text = "") |>
       gt::opt_stylize(style = 6, color = "blue")
   }
 }

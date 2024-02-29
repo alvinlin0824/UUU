@@ -4,14 +4,27 @@
 \alias{diff_measure}
 \title{Difference Measures Analysis}
 \usage{
-diff_measure(data, reference, group_var)
+diff_measure(
+  data,
+  ref,
+  cgm,
+  group_var,
+  unit = "mg/dL",
+  reference_breakpoint = TRUE
+)
 }
 \arguments{
 \item{data}{Paired Data Set}
 
-\item{reference}{Either TRUE or FALSE}
+\item{ref}{Provide Reference Readings such as YSI or BG}
+
+\item{cgm}{Provide Sensor Readings such as Gl or ANA}
 
 \item{group_var}{Any Categorical Variables}
+
+\item{unit}{Either mg/dL or mmol/L. Default is mg/dL}
+
+\item{reference_breakpoint}{Default is TRUE}
 }
 \value{
 Gt Table
