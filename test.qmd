@@ -1203,6 +1203,145 @@ Ap_mmol <- Sib |>
 ```
 
 ```{r}
+round_normal <- function(x, digits){
+    ifelse(x >= 0,round(x + 10^-(digits + 3),digits),round(x - 10^-(digits + 3),digits))
+}
+  
+diff_calculation <- list(Mean = ~ mean(.x, na.rm = T),
+                         SD = ~ sd(.x, na.rm = T),
+                         Median = ~ median(.x, na.rm = T),
+                         Min = ~ min(.x, na.rm = T),
+                         Max = ~ max(.x, na.rm = T),
+                         N = ~ sum(!is.na(.x),na.rm = T))
+```
+
+
+```{r}
+df <- Ap  |> 
+      filter(Day <= 15) |> 
+      filter(between(Gl,40,400)) |> 
+      select(!contains("Difference")) |>
+      mutate(Difference = Gl - Reference,
+            `Absolute Difference` = abs(Difference),
+            `Relative Difference(%)` = (Difference/Reference)*100,
+            `Absolute Relative Difference(%)` = abs(`Relative Difference(%)`))
+```
+
+```{r}
+df1 <- df |> 
+       mutate(# Reference Level
+              Level = case_when(round(Reference + 0.001) < 100 ~ "<100 mg/dL[5.6 mmol/L]",
+                                .default = ">=100 mg/dL[5.6 mmol/L]"))|>
+              # Overall Reference Level
+       bind_rows(df |>
+                  mutate(Level = "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)")) |> 
+       pivot_longer(Difference:`Absolute Relative Difference(%)`,names_to = "Measure") |>
+       filter((Measure %in% c("Difference", "Absolute Difference") &
+          Level %in% c("<100 mg/dL[5.6 mmol/L]", "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)")) |
+          (Measure %in% c("Relative Difference(%)", "Absolute Relative Difference(%)") &
+          Level %in% c(">=100 mg/dL[5.6 mmol/L]", "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)"))) |>
+       group_by(pick(Level,Measure))
+```
+
+```{r}
+# Diff
+df1 |> 
+    # User-Defined group variables `Type of Diabetes`
+    group_by(pick(`Age Group`,`Reference Type`,`Type of Diabetes`),.add = TRUE) |>
+    summarise_at(.vars = "value", diff_calculation) |> 
+    ungroup() |> 
+    left_join(
+
+# CI
+df1 |> 
+    # User-Defined group variables `Type of Diabetes`
+   group_by(pick(`Age Group`,`Reference Type`),.add = TRUE) |> 
+   group_by(`Subject ID`, .add = TRUE) |> 
+   summarise(bias_mean_subj = mean(value, na.rm = T),.groups = "drop_last") |> 
+   summarise(bias_mean = mean(bias_mean_subj, na.rm = T),
+             bias_sd = sd(bias_mean_subj, na.rm = T)/n()**0.5,
+             N = n(),.groups = "drop") |> 
+   mutate(`Grand Mean (95% CI)` = str_c(round_normal(bias_mean,1), " (",
+                    round_normal(bias_mean - qt(p = 0.025, df = N - 1, lower.tail = F) * bias_sd, digits = 1),
+                    ",",
+                    round_normal(bias_mean + qt(p = 0.025, df = N - 1, lower.tail = F) * bias_sd, digits = 1),
+                    ")"),.keep = "unused")) |> 
+  relocate(`Grand Mean (95% CI)`,.before = N) |> 
+  
+  # Round Number
+   mutate(across(c(Mean:Max), ~ round_normal(.x,1))) |> 
+   # Unit
+   mutate(
+          Level = factor(Level, levels = c("<100 mg/dL[5.6 mmol/L]",">=100 mg/dL[5.6 mmol/L]", "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)")),
+          Measure = factor(Measure, levels = c("Difference","Absolute Difference","Relative Difference(%)","Absolute Relative Difference(%)"))) |> 
+   arrange(pick(Level,Measure)) |> 
+   arrange(pick(`Age Group`,`Reference Type`,`Type of Diabetes`)) |> 
+   gt(groupname_col = c("Age Group","Reference Type","Type of Diabetes","Level")) |>
+   cols_align(align = "center") |>
+   fmt_number(columns = Mean:Max,decimals = 1) |>
+   sub_missing(columns = everything(),missing_text = "") |>
+   opt_stylize(style = 6, color = "blue")
+  
+
+```
+
+
+```{r}
+df |> 
+   mutate(# Reference Level
+          Level = case_when(round(Reference + 0.001) < 100 ~ "<100 mg/dL[5.6 mmol/L]",
+                            .default = ">=100 mg/dL[5.6 mmol/L]"))|>
+   # Overall Reference Level
+   bind_rows(df |>
+             mutate(Level = "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)")) |> 
+   pivot_longer(Difference:`Absolute Relative Difference(%)`,names_to = "Measure") |>
+   filter((Measure %in% c("Difference", "Absolute Difference") &
+          Level %in% c("<100 mg/dL[5.6 mmol/L]", "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)")) |
+          (Measure %in% c("Relative Difference(%)", "Absolute Relative Difference(%)") &
+          Level %in% c(">=100 mg/dL[5.6 mmol/L]", "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)"))) |>
+   group_by(pick(Level,Measure)) |>
+   # User-Defined group variables `Type of Diabetes`
+   group_by(pick(`Age Group`,`Reference Type`),.add = TRUE) |> 
+   group_by(`Subject ID`, .add = TRUE) |> 
+   summarise(bias_mean_subj = mean(value, na.rm = T),.groups = "drop_last") |> 
+   summarise(bias_mean = mean(bias_mean_subj, na.rm = T),
+             bias_sd = sd(bias_mean_subj, na.rm = T)/n()**0.5,
+             N = n(),.groups = "drop") |> 
+   mutate(`Grand Mean (95% CI)` = str_c(round_normal(bias_mean,1), " (",
+                    round_normal(bias_mean - qt(p = 0.025, df = N - 1, lower.tail = F) * bias_sd, digits = 1),
+                    ",",
+                    round_normal(bias_mean + qt(p = 0.025, df = N - 1, lower.tail = F) * bias_sd, digits = 1),
+                    ")"
+
+                    ),.keep = "unused"
+
+
+          ) |> View()
+```
+
+```{r}
+df |>
+   mutate(# Reference Level
+          Level = case_when(round(Reference + 0.001) < 100 ~ "<100 mg/dL[5.6 mmol/L]",
+                            .default = ">=100 mg/dL[5.6 mmol/L]")) |>
+   # Overall Reference Level
+   bind_rows(df |>
+             mutate(Level = "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)")) |>
+   pivot_longer(Difference:`Absolute Relative Difference(%)`,names_to = "Measure") |>
+   filter((Measure %in% c("Difference", "Absolute Difference") &
+          Level %in% c("<100 mg/dL[5.6 mmol/L]", "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)")) |
+          (Measure %in% c("Relative Difference(%)", "Absolute Relative Difference(%)") &
+          Level %in% c(">=100 mg/dL[5.6 mmol/L]", "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)"))) |>
+   group_by(pick(Level,Measure)) |>
+   # User-Defined group variables
+   group_by(pick(`Age Group`,`Reference Type`),.add = TRUE) |>
+   summarise_at(.vars = "value", diff_calculation) |> 
+   ungroup() |> View()
+```
+
+<!-- 7.5841449821 - qt(p = 0.975,df = 140,lower.tail = T) * 0.298975112 -->
+
+```{r}
 #| label: difference measure function
 diff_measure_fun <- function(data, ref, cgm, group_var, unit = "mg/dL", reference_breakpoint = TRUE) {
   
