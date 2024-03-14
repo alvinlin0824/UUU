@@ -6,8 +6,11 @@
 \usage{
 diff_measure(
   data,
+  type = "Glucose",
   ref,
   cgm,
+  breakpoint = 100,
+  col_subject,
   group_var,
   unit = "mg/dL",
   reference_breakpoint = TRUE
@@ -16,9 +19,15 @@ diff_measure(
 \arguments{
 \item{data}{Paired Data Set}
 
-\item{ref}{Provide Reference Readings such as YSI or BG}
+\item{type}{Either Glucose or Ketone. Case is not sensitive}
+
+\item{ref}{Provide Reference Readings}
 
 \item{cgm}{Provide Sensor Readings such as Gl or ANA}
+
+\item{breakpoint}{It depends on which type and unit. Default is 100}
+
+\item{col_subject}{Provide Subject Column}
 
 \item{group_var}{Any Categorical Variables}
 

@@ -1133,6 +1133,7 @@ Ap <- readRDS(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinic
 ```{r}
 #| label: Import BG.rds
 BG <- readRDS(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\Clinical Study Files\Apollo\ADC-US-PMS-22222_SiBionics\Statistics\Programs\Datasets\AL\BG.rds)"))
+UUU <- readRDS(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\Clinical Study Files\Apollo\ADC-US-PMS-22222_SiBionics\Statistics\Programs\Datasets\AL\UUU.rds)"))
 Sib <- readRDS(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\Clinical Study Files\Apollo\ADC-US-PMS-22222_SiBionics\Statistics\Programs\Datasets\AL\Sib.rds)"))
 ```
 
@@ -1172,13 +1173,20 @@ PAIRBG_fun <- function(data){
 
 ```{r}
 #| label: Paired Data
-Ap_mmol <- Sib |> 
-           mutate(eTime = as.numeric(difftime(`Date Time`,first(`Date Time`),units = "days") + 1/24),
-                 Day = floor(eTime) + 1,
-                 Gl_mmol = Gl,
-                 Type = "904",
-                 Sensor = "SiBionics",.by = c(`Subject ID`)) |> 
-          filter(between(Gl,2.2,25.0)) |> 
+Ap_mmol <- UUU |> 
+      select(!c(`Condition ID`:`Reader ID`,St,Tr)) |> 
+      mutate(Sensor = "FreeStyle Libre 2",
+             Gl_mmol = Gl/18.016,
+             eTime = as.numeric(difftime(`Date Time`,first(`Date Time`),units = "days")),
+             Day = floor(eTime) + 1,.by = c(`Subject ID`)) |> 
+      filter(between(Gl,40,500)) |> 
+      bind_rows(Sib |> 
+                mutate(eTime = as.numeric(difftime(`Date Time`,first(`Date Time`),units = "days") + 1/24),
+                Day = floor(eTime) + 1,
+                Gl_mmol = Gl,
+                Type = "904",
+                Sensor = "SiBionics",.by = c(`Subject ID`)) |> 
+                filter(between(Gl,2.2,25.0))) |> 
       # Real Time Glucose
       filter(Type == "904") |>
       group_split(`Subject ID`,Sensor) |>  
@@ -1341,7 +1349,7 @@ df |>
 
 ```{r}
 #| label: difference measure function
-diff_measure_fun <- function(data, ref, cgm, col_subject, group_var, unit = "mg/dL", reference_breakpoint = TRUE) {
+diff_measure_fun <- function(data, type = "Glucose" ,ref, cgm, breakpoint = 100, col_subject, group_var, unit = "mg/dL", reference_breakpoint = TRUE) {
   
   round_normal <- function(x, digits){
     ifelse(x >= 0,round(x + 10^-(digits + 3),digits),round(x - 10^-(digits + 3),digits))
@@ -1364,23 +1372,50 @@ df <- data |>
 
 
 if (reference_breakpoint == TRUE) {
-# gt_group_var <- c("Level",group_var)
+# Glucose
+  if (str_detect(type,regex("Glucose",ignore_case = T))) {
+lower_label <- if_else(unit == "mg/dL",
+                       str_c("<",breakpoint," mg/dL[",round_normal(breakpoint/18.016,1)," mmol/L]"),
+                       str_c("<",floor(breakpoint*18.016)," mg/dL[",breakpoint," mmol/L]")
+                       ) 
+upper_label <- if_else(unit == "mg/dL",
+                       str_c(">=",breakpoint," mg/dL[",round_normal(breakpoint/18.016,1)," mmol/L]"),
+                       str_c(">=",floor(breakpoint*18.016)," mg/dL[",breakpoint," mmol/L]")
+                       ) 
+overall_label <- if_else(unit == "mg/dL",
+                         str_c("Overall Levels (",breakpoint," mg/dL[",round_normal(breakpoint/18.016,1)," mmol/L] breakpoint)"),
+                         str_c("Overall Levels (",floor(breakpoint*18.016)," mg/dL[",breakpoint," mmol/L] breakpoint)")
+                         )
+}
+# Ketone  
+  else if (str_detect(type,regex("Ketone",ignore_case = T))) {
+lower_label <- str_c("<",breakpoint," mmol/L") 
+upper_label <- str_c(">=",breakpoint," mmol/L") 
+overall_label <- str_c("Overall Levels (",breakpoint," mmol/L breakpoint)")
+}
+
 df1 <- df |>
        # Reference Level
-       mutate(Level = if (unit == "mg/dL") {
-                      case_when(round({{ref}} + 0.001) < 100 ~ "<100 mg/dL[5.6 mmol/L]",
-                                .default = ">=100 mg/dL[5.6 mmol/L]")}
-                      else if (unit == "mmol/L"){
-                      case_when(round({{ref}} + 0.001,1) < 5.6 ~ "<100 mg/dL[5.6 mmol/L]",
-                                .default = ">=100 mg/dL[5.6 mmol/L]")})|>
+       mutate(Level = if (str_detect(type,regex("Glucose",ignore_case = T))){
+                        if (unit == "mg/dL") {
+                        case_when(round({{ref}} + 0.001) < breakpoint ~ lower_label,
+                                .default = upper_label)}
+                        else if (unit == "mmol/L"){
+                        case_when(round({{ref}} + 0.001,1) < breakpoint ~ lower_label,
+                                .default = upper_label)}}
+                      else if (str_detect(type,regex("Ketone",ignore_case = T))){
+                        case_when({{ref}} < breakpoint ~ lower_label,
+                                 .default = upper_label)
+                      }
+              ) |>
         # Overall Reference Level
         bind_rows(df |>
-                   mutate(Level = "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)")) |>
+                   mutate(Level = overall_label)) |>
         pivot_longer(Difference:`Absolute Relative Difference(%)`,names_to = "Measure") |>
         filter((Measure %in% c("Difference", "Absolute Difference") &
-                Level %in% c("<100 mg/dL[5.6 mmol/L]", "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)")) |
+                Level %in% c(lower_label, overall_label)) |
                 (Measure %in% c("Relative Difference(%)", "Absolute Relative Difference(%)") &
-                Level %in% c(">=100 mg/dL[5.6 mmol/L]", "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)"))) |>
+                Level %in% c(upper_label, overall_label))) |>
         group_by(pick(Level,Measure))
 
 # Diff Measure
@@ -1416,7 +1451,7 @@ df1 |>
                         ~ str_c(Measure," (",unit,")"),
                   .default = Measure
                         ),
-           Level = factor(Level, levels = c("<100 mg/dL[5.6 mmol/L]",">=100 mg/dL[5.6 mmol/L]", "Overall Levels (100 mg/dL[5.6 mmol/L] breakpoint)")),
+           Level = factor(Level, levels = c(lower_label,upper_label, overall_label)),
           Measure = factor(Measure, levels = c("Difference (mg/dL)","Absolute Difference (mg/dL)","Difference (mmol/L)","Absolute Difference (mmol/L)","Relative Difference(%)","Absolute Relative Difference(%)"))) |> 
     arrange(pick(Level,Measure)) |>
     arrange(pick({{group_var}})) |>
@@ -1464,22 +1499,22 @@ Ap_mmol |>
    select(!contains("Difference")) |> 
    # filter(Day <= 15) |> 
    # filter(between(Gl,40,400)) |> 
-   diff_measure_fun(ref = Reference_mmol, cgm = Gl, col_subject = `Subject ID` ,group_var = NULL, unit = "mmol/L",reference_breakpoint = T)
+   diff_measure_fun(type = "Glucose",breakpoint = 5.6,ref = Reference_mmol, cgm = Gl_mmol, col_subject = `Subject ID` ,group_var = c("Sensor","Glucose Level(mg/dL) [mmol/L]"), unit = "mmol/L",reference_breakpoint = F)
 ```
 
 ```{r}
 haven::read_sas("adc21206_paired_ca.sas7bdat") |> 
    filter(nday <= 15) |> 
    filter(between(cgm_rslt,40,400)) |> 
-   diff_measure_fun(ref = ref_rslt, cgm = cgm_rslt,col_subject = subjid, group_var = c("age_grp","ref_type"), unit = "mg/dL",reference_breakpoint = F)
+   diff_measure_fun(type = "Glucose",breakpoint = 80,ref = ref_rslt, cgm = cgm_rslt,col_subject = subjid, group_var = c("age_grp","ref_type"), unit = "mg/dL",reference_breakpoint = T)
 ```
 
 ```{r}
 Ap |> 
    select(!c(`Difference(mg/dL)`:`Absolute Relative Difference(%)`)) |> 
-   filter(Day <= 15) |> 
+   # filter(Day <= 15) |> 
    filter(between(Gl,40,400)) |> 
-   diff_measure_fun(ref = Reference, cgm = Gl, col_subject = `Subject ID`, group_var = c("Age Group","Reference Type"), unit = "mg/dL",reference_breakpoint = T)
+   diff_measure_fun(type = "Glucose",ref = Reference, cgm = Gl,breakpoint = 100 ,col_subject = `Subject ID`, group_var = c("Age Group","Reference Type"), unit = "mg/dL",reference_breakpoint = T)
 ```
 
 ```{r}
