@@ -1424,7 +1424,8 @@ df1 |>
     cols_align(align = "center") |>
     fmt_number(columns = Mean:Max,decimals = 1) |>
     sub_missing(columns = everything(),missing_text = "") |>
-    opt_stylize(style = 6, color = "blue")
+    opt_stylize(style = 6, color = "blue") |> 
+    suppressMessages()
   } else {
     gt_group_var <- group_var[1:length(group_var) - 1]
      df |>
@@ -1463,14 +1464,14 @@ Ap_mmol |>
    select(!contains("Difference")) |> 
    # filter(Day <= 15) |> 
    # filter(between(Gl,40,400)) |> 
-   diff_measure_fun(ref = Reference_mmol, cgm = Gl, group_var = c("Sensor","Glucose Level(mg/dL) [mmol/L]"), unit = "mmol/L",reference_breakpoint = F)
+   diff_measure_fun(ref = Reference_mmol, cgm = Gl, col_subject = `Subject ID` ,group_var = NULL, unit = "mmol/L",reference_breakpoint = T)
 ```
 
 ```{r}
 haven::read_sas("adc21206_paired_ca.sas7bdat") |> 
    filter(nday <= 15) |> 
    filter(between(cgm_rslt,40,400)) |> 
-   diff_measure_fun(ref = ref_rslt, cgm = cgm_rslt,group_var = c("age_grp","ref_type"), unit = "mg/dL",reference_breakpoint = F)
+   diff_measure_fun(ref = ref_rslt, cgm = cgm_rslt,col_subject = subjid, group_var = c("age_grp","ref_type"), unit = "mg/dL",reference_breakpoint = F)
 ```
 
 ```{r}
