@@ -4,15 +4,13 @@
 \alias{convert_sensor_serial_number_to_UID}
 \title{Convert Sensor Serial Number to UID}
 \usage{
-convert_sensor_serial_number_to_UID(data, col)
+convert_sensor_serial_number_to_UID(x)
 }
 \arguments{
-\item{data}{Data of interest}
-
-\item{col}{Col of Sensor Serial Number you would like to convert to UID}
+\item{x}{Column of Sensor Serial Number you would like to convert to UID}
 }
 \value{
-A tibble
+A Vector
 }
 \description{
 Convert Sensor Serial Number to UID

@@ -1,17 +1,15 @@
 #' Convert UID to Sensor Serial Number
 #'
-#' @param data Data of interest
-#' @param col Col of UID you would like to convert to Sensor Serial Number
+#' @param x Column of UID you would like to convert to Sensor Serial Number
 #'
-#' @return A tibble
+#' @return A Vector
 #' @export
 
-convert_UID_to_sensor_serial_number <- function(data,col){
+convert_UID_to_sensor_serial_number <- function(x){
 
   lookup <- c(seq(0,9),LETTERS[!str_detect(LETTERS,"B|I|O|S")])
 
-  data |>
-    mutate(UID = {{col}},.before = {{col}}) |>
+  tibble(UID = x) |>
     # Length should be 16
     filter(str_length(UID) == 16) |>
     # Big O in the sensor serial number
@@ -24,11 +22,12 @@ convert_UID_to_sensor_serial_number <- function(data,col){
                                       num7 = 5,num8 = 5,num9 = 5)) |>
     # Binary to integer
     mutate(across(c(num1:num9), ~ strtoi(.x, base = 2) + 1),
-           {{col}} := str_c(lookup[num1],lookup[num2],lookup[num3],lookup[num4],
-                            lookup[num5],lookup[num6],lookup[num7],lookup[num8],
-                            lookup[num9])) |>
+           snr = str_c(lookup[num1],lookup[num2],lookup[num3],lookup[num4],
+                       lookup[num5],lookup[num6],lookup[num7],lookup[num8],
+                       lookup[num9])) |>
     select(!c(contains("binary"),num_range("num",1:9))) |>
-    bind_rows(data |>
-                filter(str_length({{col}}) != 16) |>
-                rename(UID = {{col}}))
+    bind_rows(tibble(UID = x) |>
+              filter(str_length(UID) != 16 | is.na(UID)) |>
+              mutate(snr = UID)) |>
+    pull(snr)
 }
