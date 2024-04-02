@@ -10,6 +10,7 @@ convert_UID_to_sensor_serial_number <- function(x){
   lookup <- c(seq(0,9),LETTERS[!str_detect(LETTERS,"B|I|O|S")])
 
   tibble(UID = x) |>
+    mutate(ID = row_number()) |>
     # Length should be 16
     filter(str_length(UID) == 16) |>
     # Big O in the sensor serial number
@@ -27,7 +28,9 @@ convert_UID_to_sensor_serial_number <- function(x){
                        lookup[num9])) |>
     select(!c(contains("binary"),num_range("num",1:9))) |>
     bind_rows(tibble(UID = x) |>
-              filter(str_length(UID) != 16 | is.na(UID)) |>
-              mutate(snr = UID)) |>
+                mutate(ID = row_number()) |>
+                filter(str_length(UID) != 16 | is.na(UID)) |>
+                mutate(snr = UID)) |>
+    arrange(ID) |>
     pull(snr)
 }
