@@ -1610,7 +1610,7 @@ Ap <- readRDS(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinic
 
 ```{r}
 #| label: System Agreement function
-system_agreement_fun <- function(data, type = "Glucose", ref, cgm, unit = "mg/dL",group_var, breakpoint = 70, long = T, wider_name = NULL) {
+system_agreement_fun <- function(data, type = "Glucose", breakpoint = 70, ref, cgm, unit = "mg/dL",group_var, transpose = NULL, wider_name = NULL) {
 
   data <- data |>
           select(!contains("Difference")) |>
@@ -1654,7 +1654,7 @@ if (unit == "mg/dL"){
     
   gt_group_var <- group_var[1:length(group_var) - 1]
 
-if (long == TRUE) {
+if (transpose == TRUE) {
  # gt_group_var <- group_var[1:length(group_var) - 1]
  sys |>
    filter(!is.na({{wider_name}})) |>
@@ -1736,7 +1736,7 @@ if (long == TRUE) {
  
  gt_group_var <- group_var[1:length(group_var) - 1]
  
- if (long == TRUE) {
+ if (transpose == TRUE) {
  sys |>
    filter(!is.na({{wider_name}})) |>
    mutate(Group = case_when(
@@ -1814,7 +1814,7 @@ if (long == TRUE) {
          ungroup() |>
          filter(!is.na(Level))
     
-   if (long == TRUE){
+   if (transpose == TRUE){
         gt_group_var <- group_var[1:length(group_var) - 1]
         sys |>
             filter(!is.na({{wider_name}})) |>
@@ -1875,7 +1875,7 @@ Ap_ketone |>
                 mutate(Site = "Overall")) |>
       mutate(Site = factor(Site, levels = c("Yale","RCR","Overall"))) |>
       filter(between(ANA,0.6,3)) |> 
-      system_agreement_fun(type = "Ketone",wider_name = `Ref Type`,ref = KRSEQ01, cgm = ANA, unit = "mmol/L",long = T, group_var = c("Site","Ref Type"), breakpoint = 70)
+      system_agreement_fun(type = "Ketone",breakpoint = NULL,ref = KRSEQ01,cgm = ANA, unit = "mmol/L",group_var = c("Site","Ref Type"),transpose = F,wider_name = NULL)
 ```
 
 ```{r}
@@ -1884,35 +1884,35 @@ Ap_ketone |>
       #           mutate(Site = "Overall")) |> 
       # mutate(Site = factor(Site, levels = c("Yale","RCR","Overall"))) |> 
       filter(between(ANA,0.6,3)) |> 
-      system_agreement_fun(type = "Ketone",wider_name = NULL,ref = KRSEQ01, cgm = ANA, unit = "mmol/L",long = F, group_var = c("Site","Ref Type"), breakpoint = 70)
+      system_agreement_fun(type = "Ketone",wider_name = NULL,ref = KRSEQ01, cgm = ANA, unit = "mmol/L",transpose = F, group_var = c("Site","Ref Type"), breakpoint = 70)
 ```
 
 ```{r}
 #| label: Real Time System Accuracy Results Group by Reference Level
 #| column: page
 Ap_mmol |>
-        system_agreement_fun(wider_name = Sensor,ref = Reference_mmol, cgm = Gl_mmol, unit = "mmol/L",long = T, group_var = c("Sensor"), breakpoint = 70)
+        system_agreement_fun(wider_name = Sensor,ref = Reference_mmol, cgm = Gl_mmol, unit = "mmol/L",transpose = T, group_var = c("Sensor"), breakpoint = 70)
 ```
 
 ```{r}
 #| label: Real Time System Accuracy Results Group by Reference Level
 #| column: page
 Ap_mmol |>
-        system_agreement_fun(wider_name = `Glucose Level(mg/dL) [mmol/L]`,ref = Reference_mmol, cgm = Gl_mmol, unit = "mmol/L",long = F, group_var = c("Sensor","Glucose Level(mg/dL) [mmol/L]"), breakpoint = 70)
+        system_agreement_fun(wider_name = NULL,ref = Reference_mmol, cgm = Gl_mmol, unit = "mmol/L",transpose = F, group_var = c("Sensor","Glucose Level(mg/dL) [mmol/L]"), breakpoint = 70)
 ```
 
 ```{r}
 #| label: Real Time System Accuracy Results Group by Reference Level
 #| column: page
 Ap_mmol |>
-        system_agreement_fun(wider_name = NULL,ref = Reference_mmol, cgm = Gl_mmol, unit = "mmol/L",long = F, group_var = c("Sensor","Day"), breakpoint = 70)
+        system_agreement_fun(wider_name = NULL,ref = Reference_mmol, cgm = Gl_mmol, unit = "mmol/L",transpose = F, group_var = c("Sensor","Day"), breakpoint = 70)
 ```
 
 ```{r}
 haven::read_sas("adc21206_paired_ca.sas7bdat") |> 
    filter(nday <= 15) |> 
    filter(between(cgm_rslt,40,400)) |> 
-   system_agreement_fun(wider_name = ref_type, ref = ref_rslt, cgm = cgm_rslt, long = T, group_var = c("age_grp","ref_type"), breakpoint = 70)
+   system_agreement_fun(wider_name = ref_type, ref = ref_rslt, cgm = cgm_rslt, transpose = T, group_var = c("age_grp","ref_type"), breakpoint = 70)
 ```
 
 ```{r}
@@ -1920,14 +1920,14 @@ haven::read_sas("adc21206_paired_ca.sas7bdat") |>
 #| tbl-cap: "Number and Percent of Results within Reference Glucose <70 mg/dL"
 Ap |> 
    filter(between(Gl,40,400)) |>
-   system_agreement_fun(wider_name = `Reference Type`,ref = Reference, cgm = Gl, unit = "mg/dL",long = F, group_var = c("Age Group","Reference Type"), breakpoint = 70)
+   system_agreement_fun(wider_name = `Reference Type`,ref = Reference, cgm = Gl, unit = "mg/dL",transpose = F, group_var = c("Age Group","Reference Type"), breakpoint = 70)
 ```
 
 ```{r}
 haven::read_sas("adc21206_paired_ca.sas7bdat") |> 
    filter(nday <= 15) |> 
    filter(between(cgm_rslt,40,400)) |> 
-   system_agreement_fun(wider_name = NULL, ref = ref_rslt, cgm = cgm_rslt, long = F, group_var = c("age_grp","ref_type"), breakpoint = 80)
+   system_agreement_fun(wider_name = NULL, ref = ref_rslt, cgm = cgm_rslt, transpose = F, group_var = c("age_grp","ref_type"), breakpoint = 80)
 ```
 
 ```{r}
@@ -1935,7 +1935,7 @@ haven::read_sas("adc21206_paired_ca.sas7bdat") |>
 #| tbl-cap: "Number and Percent of Results within Reference Glucose <80 mg/dL"
 Ap |> 
    filter(between(Gl,40,400)) |> 
-   system_agreement_fun(wider_name = NULL,long = F,ref = Reference, cgm = Gl, group_var = c("Age Group","Reference Type"),breakpoint = 80)
+   system_agreement_fun(wider_name = NULL,transpose = F,ref = Reference, cgm = Gl, group_var = c("Age Group","Reference Type"),breakpoint = 80)
 ```
 
 ```{r}
@@ -1947,7 +1947,7 @@ haven::read_sas("adc21206_paired_ca.sas7bdat") |>
                                       TRUE ~ ">250 [13.9]")) |> 
    filter(nday <= 15) |>
    filter(between(cgm_rslt,40,400)) |>
-   system_agreement_fun(wider_name = NULL, ref = ref_rslt, cgm = cgm_rslt, long = F, group_var = c("age_grp","ref_type","Ref. Glucose Level"), breakpoint = 70)
+   system_agreement_fun(wider_name = NULL, ref = ref_rslt, cgm = cgm_rslt, transpose = F, group_var = c("age_grp","ref_type","Ref. Glucose Level"), breakpoint = 70)
 ```
 
 ```{r}
@@ -1961,7 +1961,7 @@ Ap |>
              mutate(`Ref. Glucose Level` = "Overall",
                     `Ref. Glucose Level` = fct_expand(`Ref. Glucose Level`,"Overall"))) |> 
    filter(between(Gl,40,400)) |>
-   system_agreement_fun(wider_name = NULL,long = F,ref = Reference, cgm = Gl,group_var = c("Age Group","Reference Type","Ref. Glucose Level"),breakpoint = 70)
+   system_agreement_fun(wider_name = NULL,transpose = F,ref = Reference, cgm = Gl,group_var = c("Age Group","Reference Type","Ref. Glucose Level"),breakpoint = 70)
 ```
 
 ```{r}
@@ -1972,7 +1972,7 @@ Ap |>
              mutate(`CGM Glucose Level` = "Overall",
                     `CGM Glucose Level` = fct_expand(`CGM Glucose Level`,"Overall"))) |>
    filter(between(Gl,40,400)) |>
-   system_agreement_fun(wider_name = NULL,long = F,ref = Reference, cgm = Gl,group_var = c("Age Group","Reference Type","CGM Glucose Level"),breakpoint = 70)
+   system_agreement_fun(wider_name = NULL,transpose = F,ref = Reference, cgm = Gl,group_var = c("Age Group","Reference Type","CGM Glucose Level"),breakpoint = 70)
 ```
 
 ```{r}
@@ -1984,7 +1984,7 @@ haven::read_sas("adc21206_paired_ca.sas7bdat") |>
    #                                    TRUE ~ ">250 [13.9]")) |> 
    filter(nday <= 15) |>
    filter(between(cgm_rslt,40,400)) |>
-   system_agreement_fun(wider_name = trt_type, ref = ref_rslt, cgm = cgm_rslt, long = T, group_var = c("age_grp","ref_type","trt_type"), breakpoint = 70)
+   system_agreement_fun(wider_name = trt_type, ref = ref_rslt, cgm = cgm_rslt, transpose = T, group_var = c("age_grp","ref_type","trt_type"), breakpoint = 70)
 ```
 
 ```{r}
@@ -1993,7 +1993,7 @@ haven::read_sas("adc21206_paired_ca.sas7bdat") |>
 Ap |> 
    filter(between(Gl,40,400)) |>
    # filter(`Reference Type` == "YSI") |> 
-   system_agreement_fun(wider_name = `Insulin Therapy`,long = T, ref = Reference, cgm = Gl,group_var = c("Age Group","Reference Type","Insulin Therapy"),breakpoint = 70)
+   system_agreement_fun(wider_name = `Insulin Therapy`,transpose = T, ref = Reference, cgm = Gl,group_var = c("Age Group","Reference Type","Insulin Therapy"),breakpoint = 70)
 ```
 
 ```{r}
@@ -2002,7 +2002,7 @@ Ap |>
 Ap |> 
    filter(between(Gl,40,400)) |>
    # filter(`Reference Type` == "YSI") |> 
-   system_agreement_fun(wider_name = NULL,long = F, ref = Reference, cgm = Gl, group_var = c("Age Group","Reference Type","Wear Period"),breakpoint = 70)
+   system_agreement_fun(wider_name = NULL,transpose = F, ref = Reference, cgm = Gl, group_var = c("Age Group","Reference Type","Wear Period"),breakpoint = 70)
 ```
 
 ```{r}
@@ -2011,7 +2011,7 @@ Ap |>
 Ap |>
    filter(Day == 1) |> 
    filter(between(Gl,40,400)) |>
-   system_agreement_fun(wider_name = NULL,long = F,ref = Reference, cgm = Gl,group_var = c("Age Group","Reference Type","12 Hour Interval","Ref. Glucose Level"),breakpoint = 70) |>
+   system_agreement_fun(wider_name = NULL,transpose = F,ref = Reference, cgm = Gl,group_var = c("Age Group","Reference Type","12 Hour Interval","Ref. Glucose Level"),breakpoint = 70) |>
    cols_label(`12 Hour Interval` = "Hour")
 ```
 
