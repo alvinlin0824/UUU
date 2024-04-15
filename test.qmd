@@ -1602,3 +1602,275 @@ ketone |>
    mutate(UID = UUU::convert_sensor_serial_number_to_UID(`Sensor Serial Number`)) |> View()
 ```
 
+<!-- System Agreement  -->
+```{r}
+#| label: Import Ap.rds
+Ap <- readRDS(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\Clinical Study Files\Apollo\ADC-US-VAL-21206 iCGM Libre 2\Statistics\Programs\Canada\Datasets\Ap.rds)"))
+```
+
+```{r}
+system_agreement_fun <- function(data, ref, cgm, group_var, breakpoint = 70, long = T, wider_name = NULL) {
+
+  gl_breaks <- c(0,15,20,40,Inf)
+
+  breakpoint_string <- as.character(breakpoint)
+  
+  data <- data |>
+          select(!contains("Difference")) |>
+          mutate(
+                 # Subject = as.character({{col_subject}}),
+                 Difference = {{cgm}} - {{ref}},
+                `Absolute Difference` = abs(Difference),
+                `Relative Difference(%)` = (Difference/{{ref}})*100,
+                `Absolute Relative Difference(%)` = abs(`Relative Difference(%)`))
+  
+  sys <- data |> 
+         # filter(between(Gl,40,400)) |> 
+         mutate(Level = case_when(round({{ref}} + 0.001) < breakpoint 
+                                  ~ str_c("<",breakpoint_string," mg/dL"),
+                                  .default = str_c(">=",breakpoint_string," mg/dL"))) |>   
+         # Overall 
+         bind_rows(data |>
+                   # filter(between(Gl,40,400)) |>
+                   mutate(Level = "Overall")) |>
+         mutate(Level = factor(Level,levels = c(str_c("<",breakpoint_string," mg/dL"),str_c(">=",breakpoint_string," mg/dL"),"Overall")),
+                Group = case_when(round({{ref}} + 0.001) < breakpoint ~ cut(round(`Absolute Difference` + 0.001,0), breaks = gl_breaks,include.lowest = T),
+                                  .default = cut(round(`Absolute Relative Difference(%)` + 0.001,0), breaks = gl_breaks,include.lowest = T))) |> 
+         # User-defined
+          group_by(Level) |> 
+          group_by(pick({{group_var}}),.add = T) |>
+          count(Level,Group,.drop = F) |>
+          mutate(Sum = sum(n),
+                 cum = case_when(row_number() %in% c(1:3) ~ cumsum(n),
+                      .default = n),
+                 Percent = case_when(Sum == 0 ~ 0,
+                          .default = round((cum/Sum)*100,1))) |>
+         ungroup() |> 
+         filter(!is.na(Level))
+  
+    
+  # gt_group_var <- group_var[1:length(group_var) - 1]
+
+if (long == TRUE) {
+ gt_group_var <- group_var[1:length(group_var) - 1]
+ sys |>
+   filter(!is.na({{wider_name}})) |>
+   mutate(Group = case_when(
+          Level == str_c("<",breakpoint_string," mg/dL")
+                    & Group == "[0,15]" ~ "Within +- 15 mg/dL [0.8 mmol/L]",
+          Level == str_c("<",breakpoint_string," mg/dL")
+                    & Group == "(15,20]" ~ "Within +- 20 mg/dL [1.1 mmol/L]",
+          Level == str_c("<",breakpoint_string," mg/dL")
+                    & Group == "(20,40]" ~ "Within +- 40 mg/dL [2.2 mmol/L]",
+          Level == str_c("<",breakpoint_string," mg/dL")
+                    & Group == "(40,Inf]" ~ "Outside +- 40 mg/dL [2.2 mmol/L]",
+          Level == str_c(">=",breakpoint_string," mg/dL")
+                    & Group == "[0,15]" ~ "Within +- 15%",
+          Level == str_c(">=",breakpoint_string," mg/dL")
+                    & Group == "(15,20]" ~ "Within +- 20%",
+          Level == str_c(">=",breakpoint_string," mg/dL")
+                    & Group == "(20,40]" ~ "Within +- 40%",
+          Level == str_c(">=",breakpoint_string," mg/dL")
+                    & Group == "(40,Inf]" ~ "Outside +- 40%",
+          Level == "Overall" & Group == "[0,15]" ~ "Within ± 15 mg/dL or 15%",
+          Level == "Overall" & Group == "(15,20]" ~ "Within ± 20 mg/dL or 20%",
+          Level == "Overall" & Group == "(20,40]" ~ "Within ± 40 mg/dL or 40%",
+          Level == "Overall" & Group == "(40,Inf]" ~ "Outside ± 40 mg/dL or 40%"),
+          `N(%)` = str_c(cum,"/",Sum," ","(",Percent,"%)")) |>
+    arrange(pick({{group_var}})) |>
+    pivot_wider(id_cols = !c(n:Percent),names_from = {{wider_name}},values_from = `N(%)`) |>
+    gt(groupname_col = c(gt_group_var,"Level")) |>
+    cols_align(align = "center") |>
+    sub_missing(columns = everything(),missing_text = "") |>
+    opt_stylize(style = 6, color = "blue")
+
+} else {
+  gt_group_var <- group_var[1:length(group_var) - 1]
+  sys |>
+    # filter(!is.na(`Reference Type`)) |>
+    mutate(Group = case_when(
+           Group == "[0,15]" ~ "Within +- 15% / Within +- 15 mg/dL [0.8 mmol/L]",
+           Group == "(15,20]" ~ "Within +- 20% / Within +- 20 mg/dL [1.1 mmol/L]",
+           Group == "(20,40]" ~ "Within +- 40% / Within +- 40 mg/dL [2.2 mmol/L]",
+           Group == "(40,Inf]" ~ "Outside +- 40%/ Outside +- 40 mg/dL [2.2 mmol/L]"),
+          `N(%)` = str_c(cum,"/",Sum," ","(",Percent,"%)")) |>
+    arrange(pick({{group_var}})) |>
+    pivot_wider(id_cols = !c(n:Percent),names_from = Group,values_from = `N(%)`) |>
+    gt(groupname_col = c(gt_group_var,"Level")) |>
+    cols_align(align = "center") |>
+    cols_width(everything() ~ px(200)) |>
+    opt_stylize(style = 6, color = "blue")
+  }
+}
+```
+
+```{r}
+haven::read_sas("adc21206_paired_ca.sas7bdat") |> 
+   filter(nday <= 15) |> 
+   filter(between(cgm_rslt,40,400)) |> 
+   system_agreement_fun(wider_name = ref_type, ref = ref_rslt, cgm = cgm_rslt, long = T, group_var = c("age_grp","ref_type"), breakpoint = 70)
+```
+
+```{r}
+#| label: Number and Percent of Results within Reference Glucose <70 mg/dL
+#| tbl-cap: "Number and Percent of Results within Reference Glucose <70 mg/dL"
+Ap |> 
+   filter(between(Gl,40,400)) |>
+   system_agreement_fun(wider_name = `Reference Type`,ref = Reference, cgm = Gl, long = T, group_var = c("Age Group","Reference Type"), breakpoint = 70)
+```
+
+```{r}
+haven::read_sas("adc21206_paired_ca.sas7bdat") |> 
+   filter(nday <= 15) |> 
+   filter(between(cgm_rslt,40,400)) |> 
+   system_agreement_fun(wider_name = NULL, ref = ref_rslt, cgm = cgm_rslt, long = F, group_var = c("age_grp","ref_type"), breakpoint = 80)
+```
+
+```{r}
+#| label: Number and Percent of Results within Reference Glucose <80 mg/dL
+#| tbl-cap: "Number and Percent of Results within Reference Glucose <80 mg/dL"
+Ap |> 
+   filter(between(Gl,40,400)) |> 
+   system_agreement_fun(wider_name = NULL,long = F,ref = Reference, cgm = Gl, group_var = c("Age Group","Reference Type"),breakpoint = 80)
+```
+
+```{r}
+haven::read_sas("adc21206_paired_ca.sas7bdat") |>
+   mutate(`Ref. Glucose Level` = UUU::fct_case_when(round(ref_rslt + 0.001) < 54 ~ "<54 [3.0]",
+                           between(round(ref_rslt + 0.001),54,69) ~ "54 to 69 [3.0-3.8]",
+                           between(round(ref_rslt + 0.001),70,180) ~ "70 to 180 [3.9-10.0]",
+                           between(round(ref_rslt + 0.001),181,250) ~ "181 to 250 [10.0-13.9]",
+                                      TRUE ~ ">250 [13.9]")) |> 
+   filter(nday <= 15) |>
+   filter(between(cgm_rslt,40,400)) |>
+   system_agreement_fun(wider_name = NULL, ref = ref_rslt, cgm = cgm_rslt, long = F, group_var = c("age_grp","ref_type","Ref. Glucose Level"), breakpoint = 70)
+```
+
+```{r}
+#| label: Number and Percent of Results within Reference Glucose by Glucose Level
+#| tbl-cap: "Number and Percent of Results within Reference Glucose by Glucose Level"
+Ap |> 
+   # Add parameter
+   # filter(Day <= params$day) |>
+   bind_rows(Ap |>
+             # filter(Day <= params$day) |>
+             mutate(`Ref. Glucose Level` = "Overall",
+                    `Ref. Glucose Level` = fct_expand(`Ref. Glucose Level`,"Overall"))) |> 
+   filter(between(Gl,40,400)) |>
+   system_agreement_fun(wider_name = NULL,long = F,ref = Reference, cgm = Gl,group_var = c("Age Group","Reference Type","Ref. Glucose Level"),breakpoint = 70)
+```
+
+```{r}
+#| label: Number and Percent of Results within Reference Glucose by CGM Level
+#| tbl-cap: "Number and Percent of Results within Reference Glucose by CGM Level"
+Ap |> 
+   bind_rows(Ap |>
+             mutate(`CGM Glucose Level` = "Overall",
+                    `CGM Glucose Level` = fct_expand(`CGM Glucose Level`,"Overall"))) |>
+   filter(between(Gl,40,400)) |>
+   system_agreement_fun(wider_name = NULL,long = F,ref = Reference, cgm = Gl,group_var = c("Age Group","Reference Type","CGM Glucose Level"),breakpoint = 70)
+```
+
+```{r}
+haven::read_sas("adc21206_paired_ca.sas7bdat") |>
+   # mutate(`Ref. Glucose Level` = UUU::fct_case_when(round(ref_rslt + 0.001) < 54 ~ "<54 [3.0]",
+   #                         between(round(ref_rslt + 0.001),54,69) ~ "54 to 69 [3.0-3.8]",
+   #                         between(round(ref_rslt + 0.001),70,180) ~ "70 to 180 [3.9-10.0]",
+   #                         between(round(ref_rslt + 0.001),181,250) ~ "181 to 250 [10.0-13.9]",
+   #                                    TRUE ~ ">250 [13.9]")) |> 
+   filter(nday <= 15) |>
+   filter(between(cgm_rslt,40,400)) |>
+   system_agreement_fun(wider_name = NULL, ref = ref_rslt, cgm = cgm_rslt, long = F, group_var = c("age_grp","ref_type","trt_type"), breakpoint = 70)
+```
+
+```{r}
+#| label: System Agreement Results for Real-time CGM by Sensor Lot
+#| tbl-cap: "System Agreement Results for Real-time CGM by Sensor Lot"
+Ap |> 
+   filter(between(Gl,40,400)) |>
+   # filter(`Reference Type` == "YSI") |> 
+   system_agreement_fun(wider_name = `Insulin Therapy`,long = T, ref = Reference, cgm = Gl,group_var = c("Age Group","Reference Type","Insulin Therapy"),breakpoint = 70)
+```
+
+```{r}
+#| label: System Agreement Results for Real-time CGM by Wear Period
+#| tbl-cap: "System Agreement Results for Real-time CGM by Wear Period"
+Ap |> 
+   filter(between(Gl,40,400)) |>
+   # filter(`Reference Type` == "YSI") |> 
+   system_agreement_fun(wider_name = NULL,long = F, ref = Reference, cgm = Gl, group_var = c("Age Group","Reference Type","Wear Period"),breakpoint = 70)
+```
+
+```{r}
+#| label: Number and Percent of Results within Reference Glucose on Day 1 by Reference Glucose Level
+#| tbl-cap: "Number and Percent of Results within Reference Glucose on Day 1 by Reference Glucose Level"
+Ap |>
+   filter(Day == 1) |> 
+   filter(between(Gl,40,400)) |>
+   system_agreement_fun(wider_name = NULL,long = F,ref = Reference, cgm = Gl,group_var = c("Age Group","Reference Type","12 Hour Interval","Ref. Glucose Level"),breakpoint = 70) |>
+   cols_label(`12 Hour Interval` = "Hour")
+```
+
+```{r}
+ #  gl_breaks <- c(0,15,20,40,Inf)
+ # 
+ #  breakpoint_string <- as.character(70)
+ #  
+ # model_data <-  Ap |> 
+ #                filter(between(Gl,40,400)) |> 
+ #                # filter(`Reference Type` == "YSI") |> 
+ #                mutate(Level = case_when(round(Reference + 0.001) < 70 
+ #                                  ~ str_c("<",breakpoint_string," mg/dL"),
+ #                                  .default = str_c(">=",breakpoint_string," mg/dL"))) |>   
+ #         # Overall 
+ #         bind_rows(Ap |>
+ #                   filter(between(Gl,40,400)) |>
+ #                   # filter(`Reference Type` == "YSI") |>
+ #                   mutate(Level = "Overall")) |>
+ #         mutate(Level = factor(Level,levels = c(str_c("<",breakpoint_string," mg/dL"),str_c(">=",breakpoint_string," mg/dL"),"Overall")),
+ #                Group = case_when(round(Reference + 0.001) < 70 ~ cut(round(`Absolute Difference(mg/dL)` + 0.001,0), breaks = gl_breaks,include.lowest = T),
+ #                                  .default = cut(round(`Absolute Relative Difference(%)` + 0.001,0), breaks = gl_breaks,include.lowest = T))) |> 
+ #         # User-defined
+ #          group_by(pick(c("Age Group","Level","Reference Type","Subject ID"))) |>
+ #          count(Level,Group,.drop = F) |>
+ #          mutate(Sum = sum(n),
+ #                 cum = case_when(row_number() %in% c(1:3) ~ cumsum(n),
+ #                      .default = n),
+ #                 Percent = case_when(Sum == 0 ~ 0,
+ #                          .default = cum/Sum),
+ #                 sys = "Libre Primary") |> 
+ #          ungroup() |> 
+ #          filter(Level == "Overall" & Group == "(20,40]") |> 
+ #          filter(`Age Group` == "Ages 18+" , `Reference Type` == "YSI")
+```
+
+```{r}
+# proc glimmix data=sysacc_sum_subj noitprint;
+#  where level2='Combined results';
+#  by level2 ref_type event sys;
+#  class sys subjid;
+#  model n_in40 / n_tot40=sys / link=logit dist=binomial ddfm=satterthwaite noint;
+#  random intercept / subject=subjid;
+#  lsmeans sys / cl alpha=.2 ilink;
+#  ods output lsmeans=outglimmix_90_lcl;
+# run;
+```
+
+```{r}
+# library(lme4)
+# library(lsmeans)
+# 
+# # Fitting the mixed-effects logistic regression model
+# model <- glmer(cbind(cum, Sum - cum) ~ 1 + (1 | `Subject ID`),
+#                data = model_data,
+#                family = binomial(link = "logit"))
+# 
+# # Calculating LS means
+# lsmeans <- lsmeans(model, specs = "sys")
+# 
+# # Extracting 90% confidence interval for LS means
+# lsmeans_ci <- confint(lsmeans, level = 0.9)
+# 
+# # Printing LS means and 90% confidence interval
+# print(lsmeans_ci)
+```
