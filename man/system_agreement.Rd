@@ -12,7 +12,7 @@ system_agreement(
   cgm,
   unit = "mg/dL",
   group_var,
-  transpose = NULL,
+  transpose = FALSE,
   wider_name = NULL
 )
 }
@@ -31,7 +31,7 @@ system_agreement(
 
 \item{group_var}{Any Categorical Variables}
 
-\item{transpose}{Transpose table. Default is NULL}
+\item{transpose}{Transpose table. Default is FALSE}
 
 \item{wider_name}{If transpose is True, please provide the transposed column}
 }
