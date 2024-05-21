@@ -34,7 +34,7 @@ freestyle <- function(freestyle_path, index = NULL) {
          Status = Status
         ),.progress = TRUE) |>
       purrr::map(\(df) df |> filter(!is.na(`BG Date Time`)),.progress = TRUE) |>
-      purrr::list_rbind() |>
+      purrr::list_rbind(names_to = "Path") |>
       # Filter Status == 0
       dplyr::filter(Status == 0) |>
       # Calculate Average freeStyle reading if time stamp are same.
@@ -71,7 +71,7 @@ freestyle <- function(freestyle_path, index = NULL) {
                       Status = Status
             ),.progress = TRUE) |>
       purrr::map(\(df) df |> dplyr::filter(!is.na(`BG Date Time`)),.progress = TRUE) |>
-      purrr::list_rbind() |>
+      purrr::list_rbind(names_to = "Path") |>
       # Filter Status == 0
       dplyr::filter(Status == 0) |>
       # Calculate Average freeStyle reading if time stamp are same.

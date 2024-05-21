@@ -1,7 +1,6 @@
 ---
 title: "Untitled"
 format: html
-editor: visual
 execute: 
   eval: false
 ---
@@ -1208,7 +1207,8 @@ Ap_mmol <- UUU |>
                            between(round(Reference + 0.001),54,69) ~ "54 to 69 [3.0-3.8]",
                            between(round(Reference + 0.001),70,180) ~ "70 to 180 [3.9-10.0]",
                            between(round(Reference + 0.001),181,250) ~ "181 to 250 [10.0-13.9]",
-                                      TRUE ~ ">250 [13.9]"))
+                                      TRUE ~ ">250 [13.9]")) 
+      # saveRDS("Ap_mmol.rds")
 ```
 
 ```{r}
@@ -1499,7 +1499,7 @@ Ap_mmol |>
    select(!contains("Difference")) |> 
    # filter(Day <= 15) |> 
    # filter(between(Gl,40,400)) |> 
-   diff_measure_fun(type = "Glucose",breakpoint = 5.6,ref = Reference_mmol, cgm = Gl_mmol, col_subject = `Subject ID` ,group_var = c("Sensor","Glucose Level(mg/dL) [mmol/L]"), unit = "mmol/L",reference_breakpoint = F)
+   diff_measure_fun(type = "Glucose",breakpoint = 5.6,ref = Reference_mmol, cgm = Gl_mmol, col_subject = `Subject ID` ,group_var = c("Sensor"), unit = "mmol/L",reference_breakpoint = F)
 ```
 
 ```{r}
@@ -2081,8 +2081,8 @@ Ap |>
 # print(lsmeans_ci)
 ```
 
-
 <!-- Concurrence -->
+
 ```{r}
 #| label: Concurrence function
 concur_fun <- function(data, bin, ref, cgm, group_var, trans = FALSE){
@@ -2226,3 +2226,99 @@ haven::read_sas("adc21206_paired_us_orr.sas7bdat")) |>
     filter(ref_type == "YSI") |> 
     concur_fun(bin = c(0,55,70,90,120,160,200,Inf),ref = ref_rslt, cgm = cgm_rslt,group_var = c("age_grp"),trans = T)
 ```
+
+<!-- ketone.csv -->
+```{r}
+#| label: Import ketone.csv
+#| eval: false
+# file_list_ketone <- dir_ls(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-22225\SE46_47_48_Ket\Upload Data\UUU\UUU_DataFiles)"),recurse = T, regexp = "*ketone[.]csv$") |> 
+#              path_filter(regexp = "Transfer", invert = T, ignore.case = T)
+file_list_ketone <- dir_ls(gsub("\\\\", "/", r"(\\wf00168p.oneabbott.com\data1\CDM\ADC-US-RES-22225\SE43_44_Ket\UploadData\UUU\UUU_DataFiles)"),recurse = T, regexp = "*ketone[.]csv$") |> 
+             path_filter(regexp = "Transfer", invert = T, ignore.case = T)
+```
+
+```{r}
+ketone <- function(ketone_path, index = NULL){
+  # # Individual File
+  if (is.numeric(index)) {
+    ketone_path[index] |> 
+       purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_select = c(`Unique Record ID`,Date,Time,`Ketone Reading`,Status)),tibble::tibble()),.progress = TRUE) |>
+      purrr::map(\(df) df |>
+            dplyr::transmute(`Subject ID` =
+                    dplyr::case_when(
+                        # Site ID == ADC
+                      stringr::str_to_upper(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{3}",ignore_case = T))) == "ADC" ~ stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = ).{4}",ignore_case = T)),
+                        # Site ID == 009
+                      stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{2}",ignore_case = T)) == "00" ~
+                        stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = 00).{1}",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                        # Site ID starts with 1
+                      stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{1}",ignore_case = T)) == "1" ~
+                        stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{3}",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                        # Site ID == 081
+                      stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{1}",ignore_case = T)) == "0" ~ stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = 0).{2}",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = )[:digit:]+",ignore_case = T))),
+                        # Site ID mislabeled
+                        .default = stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = )[:alnum:]+",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = )[:digit:]+",ignore_case = T)))
+                      ),
+         Visit = stringr::str_extract(df[1,1],stringr::regex("(?<=Condition ID = ).{3}",ignore_case = T)),
+        `Ketone Date Time` = lubridate::ymd_hms(stringr::str_c(Date,Time,sep = " ")),
+         Reference = `Ketone Reading`,
+         Status = Status
+        ),.progress = TRUE) |>
+      purrr::map(\(df) df |> filter(!is.na(`Ketone Date Time`)),.progress = TRUE) |>
+      purrr::list_rbind(names_to = "Path") |>
+      # Filter Status == 0
+      dplyr::filter(Status == 0) |>
+      # Calculate Average ketone reading if time stamp are same.
+      dplyr::mutate(Reference = mean(Reference),
+             .by = c(`Subject ID`,`Ketone Date Time`)) |>
+      # Remove Duplicated
+      dplyr::distinct() |>
+      # select Useful Columns
+      dplyr::select(!Status) |>
+      dplyr::arrange(`Subject ID`,Visit,`Ketone Date Time`)
+  } else {
+      # All Upload Data
+    ketone_path |> 
+       purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_select = c(`Unique Record ID`,Date,Time,`Ketone Reading`,Status)),tibble::tibble()),.progress = TRUE) |>
+      purrr::map(\(df) df |>
+            dplyr::transmute(`Subject ID` =
+                    dplyr::case_when(
+                        # Site ID == ADC
+                      stringr::str_to_upper(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{3}",ignore_case = T))) == "ADC" ~ stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = ).{4}",ignore_case = T)),
+                        # Site ID == 009
+                      stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{2}",ignore_case = T)) == "00" ~
+                        stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = 00).{1}",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                        # Site ID starts with 1
+                      stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{1}",ignore_case = T)) == "1" ~
+                        stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{3}",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = ).{4}",ignore_case = T))),
+                        # Site ID == 081
+                      stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = ).{1}",ignore_case = T)) == "0" ~ stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = 0).{2}",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = )[:digit:]+",ignore_case = T))),
+                        # Site ID mislabeled
+                        .default = stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = )[:alnum:]+",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = )[:digit:]+",ignore_case = T)))
+                      ),
+         Visit = stringr::str_extract(df[1,1],stringr::regex("(?<=Condition ID = ).{3}",ignore_case = T)),
+        `Ketone Date Time` = lubridate::ymd_hms(stringr::str_c(Date,Time,sep = " ")),
+         Reference = `Ketone Reading`,
+         Status = Status
+        ),.progress = TRUE) |>
+      purrr::map(\(df) df |> filter(!is.na(`Ketone Date Time`)),.progress = TRUE) |>
+      purrr::list_rbind(names_to = "Path") |>
+      # Filter Status == 0
+      dplyr::filter(Status == 0) |>
+      # Calculate Average ketone reading if time stamp are same.
+      dplyr::mutate(Reference = mean(Reference),
+             .by = c(`Subject ID`,`Ketone Date Time`)) |>
+      # Remove Duplicated
+      dplyr::distinct() |>
+      # select Useful Columns
+      dplyr::select(!Status) |>
+      dplyr::arrange(`Subject ID`, Visit,`Ketone Date Time`)
+    }
+}
+```
+
+```{r}
+#| warning: false
+ketone(ketone_path = file_list_ketone) |> View()
+```
+

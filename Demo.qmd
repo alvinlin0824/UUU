@@ -1,0 +1,97 @@
+---
+title: "Untitled"
+format: html
+---
+
+<!-- T:\Apollo\ADC-US-PMS-22222_SiBionics\Statistics\Programs\Outputs\VC -->
+<!-- T:\Apollo\ADC-US-VAL-21206 iCGM Libre 2\Statistics\Reports\Canada -->
+
+```{r}
+#| message: false
+library(tidyverse)
+library(UUU)
+```
+
+```{r}
+#| label: Import Ap.rds
+Ap <- readRDS(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\Clinical Study Files\Apollo\ADC-US-VAL-21206 iCGM Libre 2\Statistics\Programs\Canada\Datasets\Ap.rds)"))
+Ap_mmol <- readRDS("Ap_mmol.rds")
+```
+
+<!-- Difference Measures -->
+```{r}
+#| label: CGM Difference Measures vs. YSIref
+#| tbl-cap: "CGM Difference Measures vs. YSIref"
+Ap |> 
+   filter(between(Gl,40,400)) |> 
+   diff_measure(type = "Glucose",ref = Reference, cgm = Gl,breakpoint = 100 ,col_subject = `Subject ID`, group_var = c("Age Group","Reference Type"), unit = "mg/dL",reference_breakpoint = T)
+```
+
+```{r}
+#| label: CGM Difference Measures by Reference Glucose Level, YSIref
+#| tbl-cap: "CGM Difference Measures by Reference Glucose Level, YSIref"
+Ap |> 
+   filter(between(Gl,40,400)) |> 
+   diff_measure(type = "Glucose",ref = Reference, cgm = Gl ,col_subject = `Subject ID`, group_var = c("Age Group","Reference Type","Ref. Glucose Level"), unit = "mg/dL", reference_breakpoint = F)
+```
+
+```{r}
+#| label: CGM Difference Measures by CGM Level, YSIref
+#| tbl-cap: "CGM Difference Measures by CGM Level, YSIref"
+Ap |> 
+   filter(between(Gl,40,400)) |> 
+   diff_measure(type = "Glucose",ref = Reference, cgm = Gl ,col_subject = `Subject ID`, group_var = c("Age Group","Reference Type","CGM Glucose Level"), unit = "mg/dL", reference_breakpoint = F)
+```
+
+```{r}
+#| label: CGM Difference Measures vs. YSIref SAS
+haven::read_sas("adc21206_paired_ca.sas7bdat") |> 
+  diff_measure(type = "Glucose",ref = ref_rslt, cgm = cgm_rslt ,breakpoint = 100,col_subject = subjid, group_var = c("age_grp","ref_type"), unit = "mg/dL", reference_breakpoint = T)
+```
+
+```{r}
+#| label: Sibionics group by sensor
+Ap_mmol |> 
+        diff_measure(type = "Glucose",ref = Reference_mmol, cgm = Gl_mmol, breakpoint = 100,col_subject = `Subject ID`, group_var = c("Sensor"), unit = "mmol/L", reference_breakpoint = F)
+```
+
+```{r}
+#| label: Sibionics group by sensor and glucose level
+Ap_mmol |> 
+        diff_measure(type = "Glucose",ref = Reference_mmol, cgm = Gl_mmol, breakpoint = 100,col_subject = `Subject ID`, group_var = c("Sensor","Glucose Level(mg/dL) [mmol/L]"), unit = "mmol/L", reference_breakpoint = F)
+```
+
+<!-- System Agreement -->
+```{r}
+#| label: Number and Percent of Results within Reference Glucose <70 mg/dL
+#| tbl-cap: "Number and Percent of Results within Reference Glucose <70 mg/dL"
+Ap |> 
+   filter(between(Gl,40,400)) |>
+   system_agreement(type = "Glucose", breakpoint = 70,ref = Reference, cgm = Gl, unit = "mg/dL", group_var = c("Age Group","Reference Type"),transpose = T, wider_name = `Reference Type`)
+```
+
+```{r}
+#| label: Number and Percent of Results within Reference Glucose by Reference Glucose Level, YSIref
+#| tbl-cap: "Number and Percent of Results within Reference Glucose by Reference Glucose Level, YSIref"
+Ap |> 
+   filter(between(Gl,40,400)) |>
+   system_agreement(type = "Glucose", breakpoint = 70,ref = Reference, cgm = Gl, unit = "mg/dL", group_var = c("Age Group","Reference Type","Ref. Glucose Level"),transpose = F)
+```
+
+```{r}
+#| label: Number and Percent of Results within Reference Glucose <70 mg/dL SAS
+haven::read_sas("adc21206_paired_ca.sas7bdat") |> 
+  system_agreement(type = "Glucose", breakpoint = 70, ref = ref_rslt, cgm = cgm_rslt, group_var = c("age_grp","ref_type"), unit = "mg/dL",transpose = T, wider_name = ref_type)
+```
+
+```{r}
+#| label: Sibionics group by sensor Sys
+Ap_mmol |> 
+        system_agreement(type = "Glucose", breakpoint = 70,ref = Reference_mmol, cgm = Gl_mmol, unit = "mmol/L", group_var = c("Sensor"),transpose = T, wider_name = Sensor)
+```
+
+```{r}
+#| label: Sibionics group by sensor and glucose level sys
+Ap_mmol |> 
+        system_agreement(type = "Glucose", breakpoint = 70,ref = Reference_mmol, cgm = Gl_mmol, unit = "mmol/L", group_var = c("Sensor","Glucose Level(mg/dL) [mmol/L]"),transpose = F)
+```
