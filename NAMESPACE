@@ -3,6 +3,7 @@
 export(PairBg)
 export(apol)
 export(atna)
+export(concurrence)
 export(convert_UID_to_sensor_serial_number)
 export(convert_sensor_serial_number_to_UID)
 export(diff_measure)

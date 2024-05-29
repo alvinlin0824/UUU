@@ -11,6 +11,7 @@ Imports:
     tidyr,
     lubridate,
     readxl,
+    janitor,
     purrr,
     vroom,
     gt

@@ -2085,9 +2085,9 @@ Ap |>
 
 ```{r}
 #| label: Concurrence function
-concur_fun <- function(data, bin, ref, cgm, group_var, trans = FALSE){
+concur_fun <- function(data, bin = c(40,60,80,120,160,200,250,300,350,400), ref, cgm, group_var, trans = FALSE){
 
-      bins <- bin
+      bins <- c(0,bin,Inf)
       lv <- vector("list")
       for (i in 2:length(bins)) {
           if (i == 2){
@@ -2177,10 +2177,18 @@ concur_fun <- function(data, bin, ref, cgm, group_var, trans = FALSE){
 ```{r}
 #| label: Concurrence Analysis by Glucose Level
 #| tbl-cap: "Concurrence Analysis by Glucose Level"
-bins <- c(0,40,60,80,120,160,200,250,300,350,400,Inf)
+# bins <- c(40,60,80,120,160,200,250,300,350,400)
 Ap |>
    filter(`Reference Type` == "YSI") |> 
-   concur_fun(bin = bins,ref = Reference, cgm = Gl,group_var = c("Age Group"),trans = F) 
+   concur_fun(ref = Reference, cgm = Gl,group_var = c("Age Group"),trans = T) 
+```
+
+```{r}
+#| label: Concurrence Analysis by Glucose Level
+#| tbl-cap: "Concurrence Analysis by Glucose Level"
+Ap |>
+   filter(`Reference Type` == "YSI") |> 
+   concur_fun(bin = c(40,50,60,70,80,90,100,110,120),ref = Reference, cgm = Gl,group_var = c("Age Group"),trans = F) 
 ```
 
 ```{r}
@@ -2189,7 +2197,22 @@ haven::read_sas("adc21206_paired_ca.sas7bdat") |>
 haven::read_sas("adc21206_paired_ca_orr.sas7bdat")) |> 
    filter(nday <= 15) |> 
    filter(ref_type == "YSI") |> 
-   concur_fun(bin = bins,ref = ref_rslt, cgm = cgm_rslt,group_var = c("age_grp"),trans = F)
+   concur_fun(bin = c(40,50,60,70,80,90,100,110,120),ref = ref_rslt, cgm = cgm_rslt,group_var = c("age_grp"),trans = F)
+```
+
+```{r}
+Ap206 <- haven::read_sas(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\Clinical Study Files\Apollo\ADC-US-VAL-21206 iCGM Libre 2\Statistics\Programs\Datasets\adc21206_paired_us.sas7bdat)")) |> 
+      bind_rows(
+        haven::read_sas(gsub("\\\\", "/", r"(\\oneabbott.com\dept\ADC\Technical_OPS\Clinical_Affairs\Clinical Study Files\Apollo\ADC-US-VAL-21206 iCGM Libre 2\Statistics\Programs\Datasets\adc21206_paired_us_orr.sas7bdat)"))
+      )
+```
+
+```{r}
+# bins <- c(40,50,60,70,80,120,150,180,200)
+Ap206 |>
+      filter(nday <= 14) |>
+      filter(ref_type == "YSI") |> 
+      concur_fun(bin = c(55,70,90,120,160,200),ref = ref_rslt, cgm = cgm_rslt,group_var = c("age_grp"),trans = F)
 ```
 
 ```{r}
