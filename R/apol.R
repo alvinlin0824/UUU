@@ -50,7 +50,7 @@ apol <- function(events, gluc, index = NULL) {
                                       # Site ID mislabeled
                                       .default = stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = )[:alnum:]+",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = )[:digit:]+",ignore_case = T)))
                                     ),
-                                  `Condition ID` = stringr::str_extract(df[1,1],stringr::regex("(?<=Condition ID = ).{3}",ignore_case = T)),
+                                  `Condition ID` = stringr::str_to_upper(stringr::str_extract(df[1,1],stringr::regex("(?<=Condition ID = ).{3}",ignore_case = T))),
                                   `Reader ID` = stringr::str_extract(df[2,1],stringr::regex("(?<=\\s).{13}",ignore_case = T)),
                                   `Date Time` = lubridate::ymd_hms(stringr::str_c(Date,Time,sep = " ")),
                                    Type = Type,
@@ -106,7 +106,7 @@ apol <- function(events, gluc, index = NULL) {
                                       # Site ID mislabeled
                                       .default = stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = )[:alnum:]+",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = )[:digit:]+",ignore_case = T)))
                                     ),
-                                  `Condition ID` = stringr::str_extract(df[1,1],stringr::regex("(?<=Condition ID = ).{3}",ignore_case = T)),
+                                  `Condition ID` = stringr::str_to_upper(stringr::str_extract(df[1,1],stringr::regex("(?<=Condition ID = ).{3}",ignore_case = T))),
                                   `Reader ID` = stringr::str_extract(df[2,1],stringr::regex("(?<=\\s).{13}",ignore_case = T)),
                                   `Date Time` = lubridate::ymd_hms(stringr::str_c(Date,Time,sep = " ")),
                                    Type = Type,

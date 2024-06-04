@@ -52,7 +52,7 @@ mobi <- function(events, gluc, index = NULL) {
                                       # Site ID mislabeled
                                       .default = stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = )[:alnum:]+",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = )[:digit:]+",ignore_case = T)))
                                     ),
-                                  `Condition ID` = stringr::str_extract(df[1,1],stringr::regex("(?<=Condition ID = ).{3}",ignore_case = T)),
+                                  `Condition ID` = stringr::str_to_upper(stringr::str_extract(df[1,1],stringr::regex("(?<=Condition ID = ).{3}",ignore_case = T))),
                                   `Date Time` = dplyr::case_when(stringr::str_starts(Date,"[:digit:]{4}") ~
                                                                    lubridate::ymd_hms(stringr::str_c(ymd(Date),hms::as_hms(Time),sep = " "),tz = "US/Pacific"),.default = lubridate::ymd_hms(stringr::str_c(lubridate::mdy(Date),hms::as_hms(Time),sep = " "),tz = "US/Pacific")),
                                   Type = Type,
@@ -107,7 +107,7 @@ mobi <- function(events, gluc, index = NULL) {
                                       # Site ID mislabeled
                                       .default = stringr::str_c(stringr::str_extract(df[1,1],stringr::regex("(?<=Site ID = )[:alnum:]+",ignore_case = T)),stringr::str_extract(df[1,1],stringr::regex("(?<=Subject ID = )[:digit:]+",ignore_case = T)))
                                     ),
-                                  `Condition ID` = stringr::str_extract(df[1,1],regex("(?<=Condition ID = ).{3}",ignore_case = T)),
+                                  `Condition ID` = stringr::str_to_upper(stringr::str_extract(df[1,1],regex("(?<=Condition ID = ).{3}",ignore_case = T))),
                                   `Date Time` = dplyr::case_when(stringr::str_starts(Date,"[:digit:]{4}") ~
                                                                 lubridate::ymd_hms(stringr::str_c(lubridate::ymd(Date),hms::as_hms(Time),sep = " "),tz = "US/Pacific"),.default = lubridate::ymd_hms(stringr::str_c(lubridate::mdy(Date),hms::as_hms(Time),sep = " "),tz = "US/Pacific")),
                                   Type = Type,
