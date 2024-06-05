@@ -2441,7 +2441,7 @@ dexcom_fun(dexcom_path = file_list) |> View()
 
 ```{r eval = params$analysis}
 #| label: Error Grid Function
-error_grid_plot <- function (df, ref, cgm, unit = "gram", group_var,
+error_grid_plot <- function (df, ref, cgm, unit = "gram", group_var = NULL,
                              show_plot = FALSE, title = "", xlab = "", ylab = "")
 {
     data1 <- df |> 
@@ -2458,7 +2458,7 @@ error_grid_plot <- function (df, ref, cgm, unit = "gram", group_var,
     title <- "Consensus Error Grid"
   }
   if (unit == "mol") {
-    n <- 18
+    n <- 18.016
     if (xlab == "") {
       xlab = "Reference Glucose Concentration (mmol/L)"
     }
@@ -2549,8 +2549,7 @@ error_grid_plot <- function (df, ref, cgm, unit = "gram", group_var,
   # }
 
 if (show_plot == TRUE) {
-  
-  ggplot(data, aes(x = ref, y = test)) +
+plot <- ggplot(data, aes(x = ref, y = test)) +
          scale_x_continuous(breaks = c(0,round(70/n,digits = 1), round(100/n, digits = 1), round(150/n, digits = 1),round(180/n, digits = 1), round(240/n, digits = 1), round(300/n,
          digits = 1), round(350/n, digits = 1), round(400/n,digits = 1), round(450/n, digits = 1), round(500/n,digits = 1), round(550/n, digits = 1), round(600/n,digits = 1), round(650/n, digits = 1), round(700/n,digits = 1), round(750/n, digits = 1), round(800/n,digits = 1), round(850/n, digits = 1), round(900/n,digits = 1), round(950/n, digits = 1), round(1000/n, digits = 1)), expand = c(0, 0)) +
          scale_y_continuous(breaks = c(0,round(70/n, digits = 1), round(100/n, digits = 1), round(150/n, digits = 1),round(180/n, digits = 1), round(240/n, digits = 1), round(300/n,digits = 1), round(350/n, digits = 1), round(400/n,digits = 1), round(450/n, digits = 1), round(500/n,digits = 1), round(550/n, digits = 1), round(600/n,digits = 1), round(650/n, digits = 1), round(700/n, digits = 1), round(750/n, digits = 1), round(800/n, digits = 1),round(850/n,digits = 1), round(900/n,digits = 1), round(950/n, digits = 1), round(1000/n, digits = 1)), expand = c(0, 0)) + 
@@ -2575,6 +2574,13 @@ if (show_plot == TRUE) {
     ggtitle(title) +
     xlab(xlab) +
     ylab(ylab) 
+  if (unit == "gram"){
+     plot
+  } else if (unit == "mol"){
+     plot +
+     coord_cartesian(xlim = c(0,30.0), ylim = c(0,30.0))
+  }
+  
     # scale_fill_manual(values = c("1"="grey80","2"="grey30","3"="deepskyblue",
     #                              "4"="greenyellow","5"="tan1","6"="purple"))
 } else {
@@ -2599,6 +2605,30 @@ if (show_plot == TRUE) {
   }
   
 }
+```
+ 
+```{r}
+haven::read_sas("s241_01_paired.sas7bdat") |> 
+       error_grid_plot(ref_rslt, cgm_rslt, show_plot = F ,title = "Error Grid Plot", 
+                     xlab = "BG555555 Reference (mg/dL)", ylab = "Glucose Result (mg/dL)",unit = "mol")
+```
+
+ 
+```{r}
+readRDS("Ap_SE01.rds") |> 
+     error_grid_plot(Reference_mmol, Gl, show_plot = F,group_var = c("Sensor","Reference Type") ,title = "Error Grid Plot", 
+                     xlab = "BG Reference (mg/dL)", ylab = "Glucose Result (mg/dL)",unit = "mol")  
+```
+ 
+ 
+```{r}
+haven::read_sas("adc21206_paired_ca.sas7bdat") |> 
+   filter(nday <= 15) |> 
+   filter(between(cgm_rslt,40,400)) |> 
+   filter(age_grp == "3. 18+") |>
+   error_grid_plot(ref_rslt, cgm_rslt,group_var = c("age_grp","ref_type","site") ,show_plot = F, 
+                   title = "Error Grid Plot", 
+                   xlab = "BG Reference (mg/dL)", ylab = "Glucose Result (mg/dL)") 
 ```
  
 ```{r}
