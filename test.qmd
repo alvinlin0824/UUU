@@ -2476,7 +2476,7 @@ error_grid_plot <- function (df, ref, cgm, unit = "gram", group_var = NULL,
     }
   }
  
-  zones <- getParkesZones(data1$ref, data1$test, type = 1,unit)
+  zones <- getParkesZones(data1$ref, data1$test, type = 1, unit)
   
   ref <- test <- NULL
   
@@ -2584,27 +2584,38 @@ plot <- ggplot(data, aes(x = ref, y = test)) +
     # scale_fill_manual(values = c("1"="grey80","2"="grey30","3"="deepskyblue",
     #                              "4"="greenyellow","5"="tan1","6"="purple"))
 } else {
-     gt_group_var <- group_var
-      map2(data |>
-           group_split(pick({{group_var}})) |>
-           map(\(df) df |> select({{group_var}})) |>
-           map(\(df) df |> slice(1:5)),
-     
-     data |> 
-     mutate(Zones = factor(Zones,levels = c("A","B","C","D"))) |> 
-     group_split(pick({{group_var}})) |>  
-     map(\(df) tabyl(df, Zones)) |>  
-     map(\(df) df |> adorn_totals("row")) |> 
-     map(\(df) df |> adorn_pct_formatting(digits = 1)),bind_cols) |> 
-     list_rbind() |> 
-     arrange(pick({{group_var}})) |> 
-     gt(groupname_col = c(gt_group_var)) |>
-     cols_align(align = "center",columns = everything()) |>
-     cols_label(n = "N", percent = "Percent") |> 
-     opt_stylize(style = 6, color = "blue")
+     data
+     # gt_group_var <- group_var
+     #  map2(data |>
+     #       group_split(pick({{group_var}})) |>
+     #       map(\(df) df |> select({{group_var}})) |>
+     #       map(\(df) df |> slice(1:5)),
+     # 
+     # data |> 
+     # mutate(Zones = factor(Zones,levels = c("A","B","C","D"))) |> 
+     # group_split(pick({{group_var}})) |>  
+     # map(\(df) tabyl(df, Zones)) |>  
+     # map(\(df) df |> adorn_totals("row")) |> 
+     # map(\(df) df |> adorn_pct_formatting(digits = 1)),bind_cols) |> 
+     # list_rbind() |> 
+     # arrange(pick({{group_var}})) |> 
+     # gt(groupname_col = c(gt_group_var)) |>
+     # cols_align(align = "center",columns = everything()) |>
+     # cols_label(n = "N", percent = "Percent") |> 
+     # opt_stylize(style = 6, color = "blue")
   }
   
 }
+```
+ <!-- https://github.com/cran/ega/blob/master/R/ega.R -->
+```{r}
+a <- Ap |> 
+   filter(between(Gl,40,400)) |> 
+   filter(`Age Group` == "Ages 18+")
+```
+ 
+```{r}
+getParkesZones(a$Reference, a$Gl, type = 1, "gram")
 ```
  
 ```{r}
@@ -2613,13 +2624,82 @@ haven::read_sas("s241_01_paired.sas7bdat") |>
                      xlab = "BG555555 Reference (mg/dL)", ylab = "Glucose Result (mg/dL)",unit = "mol")
 ```
 
- 
+```{r}
+haven::read_sas("pk_tab.sas7bdat") |>
+  transmute(`Subject ID` = as.character(subjid),
+            `Date Time` = ymd_hms(dtm_sec),
+            `BG Date Time` = ymd_hms(fs_dtm),
+            `Reference Type` = ref_type,
+             Gl = cgm_rslt,
+             Reference = ref_rslt,
+             Zones = parkes) |> 
+   arrange(`Subject ID`) |> View()
+  # count(ref_type,parkes)
+```
+
+```{r}
+Ap |> 
+   filter(between(Gl,40,400)) |> 
+   filter(`Age Group` == "Ages 18+") |> 
+   error_grid_plot(Reference, Gl, show_plot = F, title = "Error Grid Plot", 
+                   xlab = "BG Reference (mg/dL)", ylab = "Glucose Result (mg/dL)") |> 
+   select(`Subject ID`, `Date Time`, `BG Date Time`, `Reference Type`, Gl, Reference, Zones) |> 
+   
+
+
+    count(`Reference Type`, Zones)
+```
+
+```{r}
+haven::read_sas("pk_tab.sas7bdat") |>
+  transmute(`Subject ID` = as.character(subjid),
+            `Date Time` = ymd_hms(dtm_sec),
+            `BG Date Time` = ymd_hms(fs_dtm),
+            `Reference Type` = ref_type,
+             Gl = as.character(cgm_rslt),
+             Reference = as.character(ref_rslt),
+             Zones = parkes) |> 
+   arrange(`Subject ID`) |> 
+   dplyr::setdiff(
+     Ap |> 
+   filter(between(Gl,40,400)) |> 
+   filter(`Age Group` == "Ages 18+") |> 
+   error_grid_plot(Reference, Gl, show_plot = F, title = "Error Grid Plot", 
+                   xlab = "BG Reference (mg/dL)", ylab = "Glucose Result (mg/dL)") |> 
+   mutate(Gl = as.character(Gl), Reference = as.character(Reference)) |> 
+   select(`Subject ID`, `Date Time`, `BG Date Time`, `Reference Type`, Gl, Reference, Zones)
+   ) |> 
+   arrange(`Subject ID`) |> View()
+
+Ap |> 
+   filter(between(Gl,40,400)) |> 
+   filter(`Age Group` == "Ages 18+") |> 
+   error_grid_plot(Reference, Gl, show_plot = F, title = "Error Grid Plot", 
+                   xlab = "BG Reference (mg/dL)", ylab = "Glucose Result (mg/dL)") |> 
+   mutate(Gl = as.character(Gl), Reference = as.character(Reference)) |>
+   select(`Subject ID`, `Date Time`, `BG Date Time`, `Reference Type`, Gl, Reference, Zones) |> 
+   dplyr::setdiff(
+     haven::read_sas("pk_tab.sas7bdat") |>
+  transmute(`Subject ID` = as.character(subjid),
+            `Date Time` = ymd_hms(dtm_sec),
+            `BG Date Time` = ymd_hms(fs_dtm),
+            `Reference Type` = ref_type,
+             Gl = as.character(cgm_rslt),
+             Reference = as.character(ref_rslt),
+             Zones = parkes) |> 
+   arrange(`Subject ID`)
+   ) |> 
+   arrange(`Subject ID`)
+
+```
+
+
+
 ```{r}
 readRDS("Ap_SE01.rds") |> 
      error_grid_plot(Reference_mmol, Gl, show_plot = F,group_var = c("Sensor","Reference Type") ,title = "Error Grid Plot", 
                      xlab = "BG Reference (mg/dL)", ylab = "Glucose Result (mg/dL)",unit = "mol")  
 ```
- 
  
 ```{r}
 haven::read_sas("adc21206_paired_ca.sas7bdat") |> 
@@ -2632,19 +2712,11 @@ haven::read_sas("adc21206_paired_ca.sas7bdat") |>
 ```
  
 ```{r}
-Ap |> 
-   filter(between(Gl,40,400)) |> 
-    group_split(pick(c("Reference Type","Age Group"))) |>
-    map(\(df) df |> select(c("Reference Type","Age Group")))
-```
- 
- 
-```{r}
 #| label: Error Grid Plot
 #| fig-align: center
 Ap |> 
    filter(between(Gl,40,400)) |> 
-   filter(`Age Group` == "Ages 18+" & `Reference Type` == "BG") |> 
+   filter(`Age Group` == "Ages 18+" & `Reference Type` == "YSI") |> 
    error_grid_plot(Reference, Gl, show_plot = F, title = "Error Grid Plot", 
                    xlab = "BG Reference (mg/dL)", ylab = "Glucose Result (mg/dL)")  
    # facet_grid(cols = vars(`Reference Type`),switch = "y") + 
