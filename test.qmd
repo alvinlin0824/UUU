@@ -7,12 +7,12 @@ execute:
 
 ```{r}
 #| message: false
-library(vroom)
-library(fs)
+# library(vroom)
+# library(fs)
 library(tidyverse)
-library(janitor)
-library(gt)
-library(ega)
+# library(janitor)
+# library(gt)
+# library(ega)
 ```
 
 <!-- Atna -->
@@ -2693,12 +2693,12 @@ Ap |>
 
 ```
 
-
-
 ```{r}
 readRDS("Ap_SE01.rds") |> 
-     error_grid_plot(Reference_mmol, Gl, show_plot = F,group_var = c("Sensor","Reference Type") ,title = "Error Grid Plot", 
-                     xlab = "BG Reference (mg/dL)", ylab = "Glucose Result (mg/dL)",unit = "mol")  
+     UUU::consensus_error_grid(Reference_mmol, Gl, show_plot = T,group_var = c("Sensor","Reference Type") ,title = "Error Grid Plot", 
+                     xlab = "BG Reference (mg/dL)", ylab = "Glucose Result (mg/dL)",unit = "mol")
+     # error_grid_plot(Reference_mmol, Gl, show_plot = F,group_var = c("Sensor","Reference Type") ,title = "Error Grid Plot", 
+     #                 xlab = "BG Reference (mg/dL)", ylab = "Glucose Result (mg/dL)",unit = "mol")  
 ```
  
 ```{r}
@@ -2740,6 +2740,14 @@ Ap |>
    # text_replace(pattern = "- \\(0\\)", replacement = "",locations = cells_body(columns = everything())) |>
    # opt_stylize(style = 6, color = "blue")
 ```
+
+```{r}
+Ap |> 
+   filter(between(Gl,40,400)) |> 
+   filter(`Age Group` == "Ages 18+" & `Reference Type` == "YSI") |> 
+   UUU::consensus_error_grid(ref = Reference,cgm = Gl, unit = "gram",show_plot = T)
+```
+
 
 ```{r}
 # UD <- Ap |> 
