@@ -43,7 +43,8 @@ ketone <- function(ketone_path, index = NULL){
       dplyr::distinct() |>
       # select Useful Columns
       dplyr::select(!Status) |>
-      dplyr::arrange(`Subject ID`,Visit,`Ketone Date Time`)
+      dplyr::arrange(`Subject ID`,Visit,`Ketone Date Time`) |>
+      suppressWarnings()
   } else {
     # All Upload Data
     ketone_path |>
@@ -80,6 +81,7 @@ ketone <- function(ketone_path, index = NULL){
       dplyr::distinct() |>
       # select Useful Columns
       dplyr::select(!Status) |>
-      dplyr::arrange(`Subject ID`, Visit,`Ketone Date Time`)
+      dplyr::arrange(`Subject ID`, Visit,`Ketone Date Time`) |>
+      suppressWarnings()
   }
 }

@@ -44,7 +44,8 @@ freestyle <- function(freestyle_path, index = NULL) {
       dplyr::distinct() |>
       # select Useful Columns
       dplyr::select(!Status) |>
-      dplyr::arrange(`Subject ID`,`BG Date Time`)
+      dplyr::arrange(`Subject ID`,`BG Date Time`) |>
+      suppressWarnings()
 
   } else {
     # All Upload Data
@@ -81,6 +82,7 @@ freestyle <- function(freestyle_path, index = NULL) {
       dplyr::distinct() |>
       # select Useful Columns
       dplyr::select(!Status) |>
-      dplyr::arrange(`Subject ID`,`BG Date Time`)
+      dplyr::arrange(`Subject ID`,`BG Date Time`) |>
+      suppressWarnings()
  }
 }

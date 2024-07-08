@@ -63,7 +63,8 @@ atna <- function(events, gluc, index = NULL) {
       purrr::map(\(df) df |> tidyr::fill(`Sensor Serial Number`,.direction = "down"),.progress = TRUE) |>
       purrr::map(\(df) df |> dplyr::relocate(`Subject ID`,`Condition ID`,`Sensor Serial Number`,
                                `Reader ID`,`Date Time`,Type,Gl,St,Tr),.progress = TRUE) |>
-      purrr::list_rbind(names_to = "Path")
+      purrr::list_rbind(names_to = "Path") |>
+      suppressWarnings()
 
   } else {
 
@@ -122,6 +123,7 @@ atna <- function(events, gluc, index = NULL) {
       purrr::list_rbind(names_to = "Path") |>
       # Remove Duplicated Uploads
       dplyr::distinct() |>
-      dplyr::arrange(Path,`Subject ID`,`Condition ID`,`Sensor Serial Number`)
+      dplyr::arrange(Path,`Subject ID`,`Condition ID`,`Sensor Serial Number`) |>
+      suppressWarnings()
   }
 }

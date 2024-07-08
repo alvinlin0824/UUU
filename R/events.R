@@ -50,7 +50,8 @@ events <- function(events_path, index = NULL){
                           .default = `Col 9`)) |>
       tidyr::fill(`Sensor Serial Number`,.direction = "updown") |>
       dplyr::select(!`Col 9`) |>
-      dplyr::arrange(`Subject ID`,`Condition ID`)
+      dplyr::arrange(`Subject ID`,`Condition ID`) |>
+      suppressWarnings()
     } else {
       events_path |>
         purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",
@@ -94,6 +95,7 @@ events <- function(events_path, index = NULL){
         dplyr::select(!`Col 9`) |>
         # Remove Duplicates
         dplyr::distinct() |>
-        dplyr::arrange(`Subject ID`,`Condition ID`)
+        dplyr::arrange(`Subject ID`,`Condition ID`) |>
+        suppressWarnings()
  }
 }

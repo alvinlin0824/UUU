@@ -64,7 +64,8 @@ mobi <- function(events, gluc, index = NULL) {
       purrr::map(\(df) df |> dplyr::filter(!(!is.na(`Sensor Serial Number`) & is.na(`Date Time`))),.progress = TRUE) |>
       purrr::map(\(df) df |> dplyr::relocate(`Subject ID`,`Condition ID`,`Sensor Serial Number`,
                                `Date Time`,Type,Gl),.progress = TRUE) |>
-      purrr::list_rbind(names_to = "Path")
+      purrr::list_rbind(names_to = "Path") |>
+      suppressWarnings()
 
   } else {
 
@@ -122,7 +123,8 @@ mobi <- function(events, gluc, index = NULL) {
       purrr::list_rbind(names_to = "Path") |>
       # Remove Duplicated Uploads
       dplyr::distinct() |>
-      dplyr::arrange(Path,`Subject ID`,`Condition ID`,`Sensor Serial Number`)
+      dplyr::arrange(Path,`Subject ID`,`Condition ID`,`Sensor Serial Number`) |>
+      suppressWarnings()
   }
 }
 
