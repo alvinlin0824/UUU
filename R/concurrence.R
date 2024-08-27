@@ -50,7 +50,7 @@ concurrence <- function(data, bin = c(40,60,80,120,160,200,250,300,350,400), ref
                                          ),
                                        .default = cut({{cgm}}, breaks = bins, right = T,include.lowest = T,labels = label))) |>
            group_split(pick({{group_var}})) |>
-           map(\(df) tabyl(df,{{cgm}},{{ref}})) |>
+           map(\(df) janitor::tabyl(df,{{cgm}},{{ref}})) |>
            janitor::adorn_totals("col") |>
            janitor::adorn_percentages("row") |>
            janitor::adorn_pct_formatting(digits = 1) |>
@@ -63,7 +63,7 @@ concurrence <- function(data, bin = c(40,60,80,120,160,200,250,300,350,400), ref
       gt::sub_missing(columns = everything(),missing_text = "") |>
       gt::opt_stylize(style = 6, color = "blue") |>
       gt::tab_spanner(label = "YSI (mg/dL)",columns = !contains("Total")) |>
-      gt::tab_header(title = md("Concurrence Analysis by Glucose Level"))
+      gt::tab_header(title = gt::md("Concurrence Analysis by Glucose Level"))
   } else {
     map2(data |>
            group_split(pick({{group_var}})) |>
@@ -82,7 +82,7 @@ concurrence <- function(data, bin = c(40,60,80,120,160,200,250,300,350,400), ref
                                          ),
                                        .default = cut({{cgm}}, breaks = bins, right = T,include.lowest = T,labels = label))) |>
            group_split(pick({{group_var}})) |>
-           map(\(df) tabyl(df,{{ref}},{{cgm}})) |>
+           map(\(df) janitor::tabyl(df,{{ref}},{{cgm}})) |>
            janitor::adorn_totals("col") |>
            janitor::adorn_percentages("row") |>
            janitor::adorn_pct_formatting(digits = 1) |>
@@ -95,6 +95,6 @@ concurrence <- function(data, bin = c(40,60,80,120,160,200,250,300,350,400), ref
       gt::sub_missing(columns = everything(),missing_text = "") |>
       gt::opt_stylize(style = 6, color = "blue") |>
       gt::tab_spanner(label = "CGM (mg/dL)",columns = !contains("Total")) |>
-      gt::tab_header(title = md("Concurrence Analysis by YSI Glucose Level"))
+      gt::tab_header(title = gt::md("Concurrence Analysis by YSI Glucose Level"))
   }
 }

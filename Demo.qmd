@@ -8,8 +8,11 @@ format: html
 
 ```{r}
 #| message: false
+suppressPackageStartupMessages({
 library(tidyverse)
 library(UUU)
+library(janitor)
+})
 ```
 
 ```{r}
@@ -63,19 +66,19 @@ Ap_mmol |>
 
 <!-- System Agreement -->
 ```{r}
-#| label: Number and Percent of Results within Reference Glucose by Reference Glucose Level, YSIref
-#| tbl-cap: "Number and Percent of Results within Reference Glucose by Reference Glucose Level, YSIref"
-Ap |> 
-   filter(between(Gl,40,400)) |>
-   system_agreement(type = "Glucose", breakpoint = 70,ref = Reference, cgm = Gl, unit = "mg/dL", group_var = c("Age Group","Reference Type","Ref. Glucose Level"),transpose = F)
-```
-
-```{r}
 #| label: Number and Percent of Results within Reference Glucose <70 mg/dL
 #| tbl-cap: "Number and Percent of Results within Reference Glucose <70 mg/dL"
 Ap |> 
    filter(between(Gl,40,400)) |>
    system_agreement(type = "Glucose", breakpoint = 70,ref = Reference, cgm = Gl, unit = "mg/dL", group_var = c("Age Group","Reference Type"),transpose = T, wider_name = `Reference Type`)
+```
+
+```{r}
+#| label: Number and Percent of Results within Reference Glucose by Reference Glucose Level, YSIref
+#| tbl-cap: "Number and Percent of Results within Reference Glucose by Reference Glucose Level, YSIref"
+Ap |> 
+   filter(between(Gl,40,400)) |>
+   system_agreement(type = "Glucose", breakpoint = 70,ref = Reference, cgm = Gl, unit = "mg/dL", group_var = c("Age Group","Reference Type","Ref. Glucose Level"),transpose = F)
 ```
 
 ```{r}
@@ -94,4 +97,13 @@ Ap_mmol |>
 #| label: Sibionics group by sensor and glucose level sys
 Ap_mmol |> 
         system_agreement(type = "Glucose", breakpoint = 70,ref = Reference_mmol, cgm = Gl_mmol, unit = "mmol/L", group_var = c("Sensor","Glucose Level(mg/dL) [mmol/L]"),transpose = F)
+```
+
+<!-- Concurrence -->
+```{r}
+#| label: Number and Percent of Results within Reference Glucose <70 mg/dL
+Ap |> 
+   filter(between(Gl,40,400)) |>
+   concurrence(ref = Reference, cgm = Gl, group_var = NULL)
+   # system_agreement(type = "Glucose", breakpoint = 70,ref = Reference, cgm = Gl, unit = "mg/dL", group_var = c("Age Group","Reference Type"),transpose = T, wider_name = `Reference Type`)
 ```
