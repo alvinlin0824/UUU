@@ -24,9 +24,9 @@ read_edc <- function(directory, name_of_edc){
         message(paste("Package", package_name, "was not installed."))
       }
     }
-      else {
-      message(paste("Package", package_name, "is already installed and loaded."))
-    }
+    #   else {
+    #   message(paste("Package", package_name, "is already installed and loaded."))
+    # }
   }
 
   args <- rlang::ensyms(name_of_edc)
