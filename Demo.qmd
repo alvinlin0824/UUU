@@ -11,7 +11,6 @@ format: html
 suppressPackageStartupMessages({
 library(tidyverse)
 library(UUU)
-library(janitor)
 })
 ```
 
@@ -27,7 +26,8 @@ Ap_mmol <- readRDS("Ap_mmol.rds")
 #| tbl-cap: "CGM Difference Measures vs. YSIref"
 Ap |> 
    filter(between(Gl,40,400)) |> 
-   diff_measure(type = "Glucose",ref = Reference, cgm = Gl,breakpoint = 100 ,col_subject = `Subject ID`, group_var = c("Age Group","Reference Type"), unit = "mg/dL",reference_breakpoint = T)
+   UUU::diff_measure(type = "Glucose", ref = Reference, cgm = Gl, breakpoint = 100, col_subject = `Subject ID`, group_var = c("Age Group","Reference Type"), unit = "mg/dL",reference_breakpoint = T)
+   # diff_measure(type = "Glucose",ref = Reference, cgm = Gl,breakpoint = 100 ,col_subject = `Subject ID`, group_var = c("Age Group","Reference Type"), unit = "mg/dL",reference_breakpoint = T)
 ```
 
 ```{r}
@@ -101,9 +101,39 @@ Ap_mmol |>
 
 <!-- Concurrence -->
 ```{r}
-#| label: Number and Percent of Results within Reference Glucose <70 mg/dL
+#| label: Concurrence Analysis by Glucose Level - Adult
+Ap |> 
+   concurrence(ref = Reference, cgm = Gl, group_var = c("Age Group","Reference Type"))
+```
+
+```{r}
+#| label: Concurrence Analysis by Glucose Level in Low Range - Adult
+Ap |> 
+   concurrence(bin = c(seq(40,120,10)),ref = Reference, cgm = Gl, group_var = c("Age Group","Reference Type"))
+```
+
+```{r}
+#| label: Concurrence Analysis by Glucose Level - Adult
+Ap |> 
+   concurrence(ref = Reference, cgm = Gl, group_var = c("Age Group","Reference Type"),trans = T)
+```
+
+<!-- Consensus Error Grid Analysis (Consensus EGA) -->
+```{r}
 Ap |> 
    filter(between(Gl,40,400)) |>
-   concurrence(ref = Reference, cgm = Gl, group_var = NULL)
-   # system_agreement(type = "Glucose", breakpoint = 70,ref = Reference, cgm = Gl, unit = "mg/dL", group_var = c("Age Group","Reference Type"),transpose = T, wider_name = `Reference Type`)
+   consensus_error_grid(ref = Reference, cgm = Gl, unit = "gram", group_var = c("Age Group","Reference Type"),show_plot = F)
+```
+
+```{r}
+Ap |> 
+   filter(between(Gl,40,400)) |>
+   filter(`Age Group` == "Ages 18+", `Reference Type` == "YSI") |> 
+   consensus_error_grid(ref = Reference, cgm = Gl, unit = "gram", group_var = c("Age Group","Reference Type"),show_plot = T)
+```
+
+```{r}
+Ap_mmol |> 
+   filter(Sensor == "SiBionics") |> 
+   consensus_error_grid(ref = Reference_mmol, cgm = Gl_mmol, unit = "mol",show_plot = T)
 ```
