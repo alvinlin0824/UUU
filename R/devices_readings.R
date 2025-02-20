@@ -9,6 +9,29 @@
 
 devices_readings <- function(devices_path, readings_path, index = NULL){
 
+  # Check packages
+  packages <- c("tidyverse","vroom","rlang")
+  for (package_name in packages) {
+    if (!require(package_name, character.only = TRUE)) {
+      install <- readline(prompt = paste("Package", package_name, "is not installed. Do you want to install it? (Yes/No): "))
+      # If say yes
+      if (tolower(install) == "yes") {
+        install.packages(package_name)
+        library(package_name, character.only = TRUE)
+        message(paste("Package", package_name, "has been installed and loaded."))
+      }
+      # If say no
+      else {
+        message(paste("Package", package_name, "was not installed."))
+      }
+    }
+    #   else {
+    #   message(paste("Package", package_name, "is already installed and loaded."))
+    # }
+  }
+
+
+
   if (length(devices_path) != length(readings_path)) {rlang::abort("Number of devices.csv is not equal to number of readings.csv!")}
 
   if (!is.numeric(index) && !is.null(index)) {rlang::abort("Index must be numeric!")}
@@ -20,26 +43,30 @@ devices_readings <- function(devices_path, readings_path, index = NULL){
       map2(
         # Devices.csv
         devices_path[index] |>
-          set_names() |>
-          map(possibly(\(path) vroom::vroom(path, delim = ",", col_types = c(SubjectID = "c", activationTimeUTC = "T"), show_col_types = F, col_select = c(SubjectID, ConditionID, sensorSN, activationTimeUTC)), tibble::tibble()), .progress = T) |>
-          map(\(df) df |> rename(timeUTC = activationTimeUTC)),
+          purrr::set_names() |>
+          map(possibly(\(path) vroom::vroom(path, delim = ",", col_types = c(SiteID = "c", SubjectID = "c", activationTime= "c"), show_col_types = F, col_select = c(SiteID,SubjectID, ConditionID, sensorSN, activationTime)), tibble::tibble()), .progress = T) |>
+          map(\(df) df |> rename(timeLocal = activationTime)),
         # readings.csv
         readings_path[index] |>
-          set_names() |>
-          map(possibly(\(path) vroom::vroom(path, delim = ",", col_types = c(SubjectID = "c", timeUTC = "T", reading = "d"), show_col_types = F, col_select = c(SubjectID, ConditionID, timeUTC, reading, analyte, DataType)), tibble::tibble()), .progress = T), bind_rows) |>
+          purrr::set_names() |>
+          map(possibly(\(path) vroom::vroom(path, delim = ",", col_types = c(SiteID = "c", SubjectID = "c", lifecount = "c", timeLocal = "c", reading = "d"), show_col_types = F,
+                                            col_select = c(SiteID, SubjectID, ConditionID, lifecount, timeLocal, reading, analyte, uom, DataType)), tibble::tibble()), .progress = T), bind_rows) |>
         # Fill sensor serial number
         map(\(df) df |> fill(sensorSN), .progress = T) |>
         list_rbind(names_to = "Path") |>
         transmute(Path = Path,
+                  Site = SiteID,
                   `Subject ID` = SubjectID,
                   `Condition ID` = ConditionID,
                   `Sensor Serial Number` = sensorSN,
-                  `Date Time` = force_tz(with_tz(timeUTC, tzone = "US/Pacific"), tzone = "UTC"),
+                  Lifecount = lifecount,
+                  `Date Time` = ymd_hms(str_remove(timeLocal,"-[0-9][0-9]:00")),
+                  Analyte = analyte,
+                  uom = uom,
                   Type = case_when(DataType == "raw" ~ "906",
                                    DataType == "historical" ~ "905",
                                    .default = "SENSOR_STARTED (58)"),
-                  Reading = reading,
-                  Analyte = analyte) |>
+                  Reading = reading) |>
         suppressWarnings()
     }
   }
@@ -47,26 +74,30 @@ devices_readings <- function(devices_path, readings_path, index = NULL){
     map2(
       # Devices.csv
       devices_path |>
-        set_names() |>
-        map(\(path) vroom::vroom(path, delim = ",", show_col_types = F, col_types = c(SubjectID = "c", activationTimeUTC = "T"), col_select = c(SubjectID, ConditionID, sensorSN, activationTimeUTC)), .progress = T) |>
-        map(\(df) df |> rename(timeUTC = activationTimeUTC)),
+        purrr::set_names() |>
+        map(possibly(\(path) vroom::vroom(path, delim = ",", col_types = c(SiteID = "c", SubjectID = "c", activationTime= "c"), show_col_types = F, col_select = c(SiteID,SubjectID, ConditionID, sensorSN, activationTime)), tibble::tibble()), .progress = T) |>
+        map(\(df) df |> rename(timeLocal = activationTime)),
       # readings.csv
       readings_path |>
-        set_names() |>
-        map(\(path) vroom::vroom(path, delim = ",", show_col_types = F, , col_types = c(SubjectID = "c", timeUTC = "T", reading = "d"), col_select = c(SubjectID, ConditionID, timeUTC, reading, analyte, DataType)), .progress = T), bind_rows) |>
+        purrr::set_names() |>
+        map(possibly(\(path) vroom::vroom(path, delim = ",", col_types = c(SiteID = "c", SubjectID = "c", lifecount = "c", timeLocal = "c", reading = "d"), show_col_types = F,
+                                          col_select = c(SiteID, SubjectID, ConditionID, lifecount, timeLocal, reading, analyte, uom, DataType)), tibble::tibble()), .progress = T), bind_rows) |>
       # Fill sensor serial number
       map(\(df) df |> fill(sensorSN), .progress = T) |>
       list_rbind(names_to = "Path") |>
       transmute(Path = Path,
+                Site = SiteID,
                 `Subject ID` = SubjectID,
                 `Condition ID` = ConditionID,
                 `Sensor Serial Number` = sensorSN,
-                `Date Time` = force_tz(with_tz(timeUTC, tzone = "US/Pacific"), tzone = "UTC"),
+                Lifecount = lifecount,
+                `Date Time` = ymd_hms(str_remove(timeLocal,"-[0-9][0-9]:00")),
+                Analyte = analyte,
+                uom = uom,
                 Type = case_when(DataType == "raw" ~ "906",
                                  DataType == "historical" ~ "905",
                                  .default = "SENSOR_STARTED (58)"),
-                Reading = reading,
-                Analyte = analyte) |>
+                Reading = reading) |>
       suppressWarnings()
   }
 }

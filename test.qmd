@@ -3190,9 +3190,145 @@ oneminutes <- function(events, one_minutes, index = NULL) {
   }
 ```
 
+```{r}
+oneminutes(events = path_filter(file_list, regexp = "*KETO.+events.csv$", ignore.case = T), one_minutes = path_filter(file_list, regexp = "*KETO.+oneMinutes.csv$", ignore.case = T),index = 55) |> View()
+```
+
+```{r}
+file_list <- dir_ls(gsub("\\\\", "/", r"(M:\ADC-US-RES-24259\UploadData\Sensor_Data)"), 
+                    regexp = "*devices.csv$|*readings.csv$", recurse = T) |> 
+             path_filter(regexp = "Transfers|Transfer|Archive|Archives|LifeCount", invert = T, ignore.case = T)
+```
+
+```{r}
+devices <- path_filter(file_list, regexp = "devices.csv")
+readings <- path_filter(file_list, regexp = "readings.csv")
+```
+, activationTime= "T"
+```{r}
+devices[1] |> 
+        purrr::set_names() |>
+        map(possibly(\(path) vroom::vroom(path, delim = ",", col_types = c(SubjectID = "c", activationTime= "c"), show_col_types = F, col_select = c(SubjectID, ConditionID, sensorSN, activationTime)), tibble::tibble()), .progress = T) |> 
+        map(\(df) df |> rename(timeLocal = activationTime)) |> 
+    list_rbind() |> 
+    mutate(ID = str_remove(timeLocal,"-[0-9][0-9]:00"),
+           ID1 = ymd_hms(ID)) |> View()
+```
+
+```{r}
+map2(
+      # Devices.csv
+        devices_path[index] |> 
+        purrr::set_names() |>
+        map(possibly(\(path) vroom::vroom(path, delim = ",", col_types = c(SiteID = "c", SubjectID = "c", activationTime= "c"), show_col_types = F, col_select = c(SiteID,SubjectID, ConditionID, sensorSN, activationTime)), tibble::tibble()), .progress = T) |> 
+        map(\(df) df |> rename(timeLocal = activationTime)),
+      # readings.csv  
+      readings_path[index] |> 
+          purrr::set_names() |>
+          map(possibly(\(path) vroom::vroom(path, delim = ",", col_types = c(SiteID = "c", SubjectID = "c", lifecount = "c", timeLocal = "c", reading = "d"), show_col_types = F, 
+             col_select = c(SiteID, SubjectID, ConditionID, lifecount, timeLocal, reading, analyte, uom, DataType)), tibble::tibble()), .progress = T), bind_rows) |> 
+      # Fill sensor serial number 
+      map(\(df) df |> fill(sensorSN), .progress = T) |> 
+      list_rbind(names_to = "Path") |> 
+      transmute(Path = Path,
+                 Site = SiteID,
+                `Subject ID` = SubjectID,
+                `Condition ID` = ConditionID,
+                `Sensor Serial Number` = sensorSN,
+                 Lifecount = lifecount,
+                `Date Time` = ymd_hms(str_remove(timeLocal,"-[0-9][0-9]:00")),
+                 Analyte = analyte,
+                 uom = uom,
+                 Type = case_when(DataType == "raw" ~ "906",
+                                  DataType == "historical" ~ "905",
+                                  .default = "SENSOR_STARTED (58)"),
+                 Reading = reading) |> 
+      suppressWarnings()
+```
 
 
 ```{r}
-oneminutes(events = path_filter(file_list, regexp = "*KETO.+events.csv$", ignore.case = T), one_minutes = path_filter(file_list, regexp = "*KETO.+oneMinutes.csv$", ignore.case = T),index = 55) |> View()
+devices_readings1 <- function(devices_path, readings_path, index = NULL){
+
+  if (length(devices_path) != length(readings_path)) {rlang::abort("Number of devices.csv is not equal to number of readings.csv!")}
+
+  if (!is.numeric(index) && !is.null(index)) {rlang::abort("Index must be numeric!")}
+
+  if(is.numeric(index)) {
+    if (index > length(devices_path) || index > length(readings_path)) {rlang::abort("Index beyond the range!")}
+
+    else {
+      map2(
+      # Devices.csv
+        devices_path[index] |> 
+        purrr::set_names() |>
+        map(possibly(\(path) vroom::vroom(path, delim = ",", col_types = c(SiteID = "c", SubjectID = "c", activationTime= "c"), show_col_types = F, col_select = c(SiteID,SubjectID, ConditionID, sensorSN, activationTime)), tibble::tibble()), .progress = T) |> 
+        map(\(df) df |> rename(timeLocal = activationTime)),
+      # readings.csv  
+      readings_path[index] |> 
+          purrr::set_names() |>
+          map(possibly(\(path) vroom::vroom(path, delim = ",", col_types = c(SiteID = "c", SubjectID = "c", lifecount = "c", timeLocal = "c", reading = "d"), show_col_types = F, 
+             col_select = c(SiteID, SubjectID, ConditionID, lifecount, timeLocal, reading, analyte, uom, DataType)), tibble::tibble()), .progress = T), bind_rows) |> 
+      # Fill sensor serial number 
+      map(\(df) df |> fill(sensorSN), .progress = T) |> 
+      list_rbind(names_to = "Path") |> 
+      transmute(Path = Path,
+                 Site = SiteID,
+                `Subject ID` = SubjectID,
+                `Condition ID` = ConditionID,
+                `Sensor Serial Number` = sensorSN,
+                 Lifecount = lifecount,
+                `Date Time` = ymd_hms(str_remove(timeLocal,"-[0-9][0-9]:00")),
+                 Analyte = analyte,
+                 uom = uom,
+                 Type = case_when(DataType == "raw" ~ "906",
+                                  DataType == "historical" ~ "905",
+                                  .default = "SENSOR_STARTED (58)"),
+                 Reading = reading) |> 
+      suppressWarnings()
+    }
+  }
+  else if (is.null(index)) {
+   map2(
+      # Devices.csv
+        devices_path |> 
+        purrr::set_names() |>
+        map(possibly(\(path) vroom::vroom(path, delim = ",", col_types = c(SiteID = "c", SubjectID = "c", activationTime= "c"), show_col_types = F, col_select = c(SiteID,SubjectID, ConditionID, sensorSN, activationTime)), tibble::tibble()), .progress = T) |> 
+        map(\(df) df |> rename(timeLocal = activationTime)),
+      # readings.csv  
+      readings_path |> 
+          purrr::set_names() |>
+          map(possibly(\(path) vroom::vroom(path, delim = ",", col_types = c(SiteID = "c", SubjectID = "c", lifecount = "c", timeLocal = "c", reading = "d"), show_col_types = F, 
+             col_select = c(SiteID, SubjectID, ConditionID, lifecount, timeLocal, reading, analyte, uom, DataType)), tibble::tibble()), .progress = T), bind_rows) |> 
+      # Fill sensor serial number 
+      map(\(df) df |> fill(sensorSN), .progress = T) |> 
+      list_rbind(names_to = "Path") |> 
+      transmute(Path = Path,
+                 Site = SiteID,
+                `Subject ID` = SubjectID,
+                `Condition ID` = ConditionID,
+                `Sensor Serial Number` = sensorSN,
+                 Lifecount = lifecount,
+                `Date Time` = ymd_hms(str_remove(timeLocal,"-[0-9][0-9]:00")),
+                 Analyte = analyte,
+                 uom = uom,
+                 Type = case_when(DataType == "raw" ~ "906",
+                                  DataType == "historical" ~ "905",
+                                  .default = "SENSOR_STARTED (58)"),
+                 Reading = reading) |> 
+      suppressWarnings()
+  }
+}
+```
+
+```{r}
+devices_readings1(devices_path = file_list |> path_filter(regexp = "devices.csv"),
+                 readings_path = file_list |> path_filter(regexp = "readings.csv"),index = 120) |> View()
+```
+
+
+```{r}
+devices_readings(devices_path = file_list |> path_filter(regexp = "devices.csv"),
+                 readings_path = file_list |> path_filter(regexp = "readings.csv")) |> View()
 ```
 
