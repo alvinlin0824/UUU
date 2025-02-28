@@ -58,9 +58,9 @@ oneminutes <- function(events, one_minutes, index = NULL) {
         purrr::map2(
           # Import oneminutes.csv
           one_minutes[index] |>
-            purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,TXS,Rw,TpSk,Dq,TpBd),n_max = 2),tibble::tibble()),.progress = TRUE),
+            purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Date = "c", Time = "c", Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,TXS,Rw,TpSk,Dq,TpBd),n_max = 2),tibble::tibble()),.progress = TRUE),
           one_minutes[index] |>
-            purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:9),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","TXS","Rw","TpSk","Dq","TpBd"),colClasses = c("V2" = "Date","V4" = "character")),tibble::tibble()),.progress = TRUE),
+            purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:9),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","TXS","Rw","TpSk","Dq","TpBd"),colClasses = c("V2" = "character","V3" = "character","V4" = "character")),tibble::tibble()),.progress = TRUE),
           dplyr::bind_rows,.progress = TRUE) |>
           purrr::map(\(df) df |> dplyr::transmute(`Subject ID` =
                                                     dplyr::case_when(
@@ -85,7 +85,7 @@ oneminutes <- function(events, one_minutes, index = NULL) {
                                                   TpSk = TpSk,
                                                   Dq = Dq,
                                                   TpBd = TpBd),.progress = TRUE) |>
-        purrr::map(\(df) df |> dplyr::slice(3:n())),dplyr::bind_rows,.progress = TRUE) |>
+          purrr::map(\(df) df |> dplyr::slice(3:n())),dplyr::bind_rows,.progress = TRUE) |>
         purrr::map(\(df) df |> dplyr::arrange(`Date Time`),.progress = TRUE) |>
         purrr::map(\(df) df |> tidyr::fill(c(`Subject ID`,`Condition ID`),.direction = "up"),.progress = TRUE) |>
         purrr::map(\(df) df |> tidyr::fill(`Sensor Serial Number`,.direction = "down"),.progress = TRUE) |>
@@ -114,9 +114,9 @@ oneminutes <- function(events, one_minutes, index = NULL) {
       purrr::map2(
         # Import oneminutes.csv
         one_minutes |>
-          purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,TXS,Rw,TpSk,Dq,TpBd),n_max = 2),tibble::tibble()),.progress = TRUE),
+          purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Date = "c", Time = "c", Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,TXS,Rw,TpSk,Dq,TpBd),n_max = 2),tibble::tibble()),.progress = TRUE),
         one_minutes |>
-          purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:9),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","TXS","Rw","TpSk","Dq","TpBd"),colClasses = c("V2" = "Date","V4" = "character")),tibble::tibble()),.progress = TRUE),
+          purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:9),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","TXS","Rw","TpSk","Dq","TpBd"),colClasses = c("V2" = "character","V3" = "character","V4" = "character")),tibble::tibble()),.progress = TRUE),
         dplyr::bind_rows,.progress = TRUE) |>
         purrr::map(\(df) df |> dplyr::transmute(`Subject ID` =
                                                   dplyr::case_when(
