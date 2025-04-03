@@ -58,9 +58,9 @@ mobi_anaPlus <- function(events, ana, index = NULL) {
         # Second List
         # Import anaPlus.csv or ana.csv
         ana[index] |>
-          purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Date = "c", Time = "c", Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,ANA,Tr),n_max = 2),tibble::tibble()),.progress = TRUE),
+          purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Date = "c", Time = "c", Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,ANA,Rate,Tr),n_max = 2),tibble::tibble()),.progress = TRUE),
         ana[index] |>
-          purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","ANA","Rate","Tr"),colClasses = c("V2" = "character","V3" = "character","V4" = "character")),tibble::tibble()),.progress = TRUE),
+          purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","ANA","Rate","Tr"),colClasses = c("V2" = "character","V3" = "character","V4" = "character","V5" = "numeric","V6" = "numeric","V7" = "numeric")),tibble::tibble()),.progress = TRUE),
         dplyr::bind_rows,.progress = TRUE) |>
         purrr::map(\(df) df |> dplyr::transmute(`Subject ID` =
                                                   dplyr::case_when(
@@ -114,9 +114,9 @@ mobi_anaPlus <- function(events, ana, index = NULL) {
         # Second List
         # Import anaPlus.csv or ana.csv
         ana |>
-          purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Date = "c", Time = "c", Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,ANA,Tr),n_max = 2),tibble::tibble()),.progress = TRUE),
+          purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Date = "c", Time = "c", Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,ANA,Rate,Tr),n_max = 2),tibble::tibble()),.progress = TRUE),
         ana |>
-          purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","ANA","Rate","Tr"),colClasses = c("V2" = "character","V3" = "character","V4" = "character")),tibble::tibble()),.progress = TRUE),
+          purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","ANA","Rate","Tr"),colClasses = c("V2" = "character","V3" = "character","V4" = "character","V5" = "numeric","V6" = "numeric","V7" = "numeric")),tibble::tibble()),.progress = TRUE),
         dplyr::bind_rows,.progress = TRUE) |>
         purrr::map(\(df) df |> dplyr::transmute(`Subject ID` =
                                                   dplyr::case_when(

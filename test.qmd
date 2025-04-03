@@ -3352,16 +3352,16 @@ mobi_anaPlus1 <- function(events, ana, index = NULL) {
         purrr::map(\(df) df |> dplyr::filter(Type == "SENSOR_STARTED (58)"),.progress = TRUE) |>
         purrr::map(\(df) df |> dplyr::transmute(
           `Date Time` = lubridate::ymd_hms(stringr::str_c(Date,Time,sep = " ")),
-          Type = Type,
+           Type = Type,
           `Sensor Serial Number` = `Col 9`),.progress = TRUE),
 
       purrr::map2(
         # Second List
         # Import anaPlus.csv or ana.csv
         ana[index] |>
-          purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Date = "c", Time = "c", Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,ANA,Tr),n_max = 2),tibble::tibble()),.progress = TRUE),
+          purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Date = "c", Time = "c", Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,ANA,Rate,Tr),n_max = 2),tibble::tibble()),.progress = TRUE),
         ana[index] |>
-          purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","ANA","Rate","Tr"),colClasses = c("V2" = "character","V3" = "character","V4" = "character")),tibble::tibble()),.progress = TRUE),
+          purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","ANA","Rate","Tr"),colClasses = c("V2" = "character","V3" = "character","V4" = "character","V5" = "numeric","V6" = "numeric","V7" = "numeric")),tibble::tibble()),.progress = TRUE),
         dplyr::bind_rows,.progress = TRUE) |>
         purrr::map(\(df) df |> dplyr::transmute(`Subject ID` =
                                                   dplyr::case_when(
@@ -3414,7 +3414,7 @@ mobi_anaPlus1 <- function(events, ana, index = NULL) {
         # Second List
         # Import anaPlus.csv or ana.csv
         ana |>
-          purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Date = "c", Time = "c", Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,ANA,Tr),n_max = 2),tibble::tibble()),.progress = TRUE),
+          purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Date = "c", Time = "c", Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,ANA,Rate,Tr),n_max = 2),tibble::tibble()),.progress = TRUE),
         ana |>
           purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","ANA","Rate","Tr"),colClasses = c("V2" = "character","V3" = "character","V4" = "character")),tibble::tibble()),.progress = TRUE),
         dplyr::bind_rows,.progress = TRUE) |>
@@ -3456,7 +3456,47 @@ mobi_anaPlus1 <- function(events, ana, index = NULL) {
 ```
 
 ```{r}
+#| label: Import events.csv and anaPlus.csv
+
+file_list <- dir_ls(gsub("\\\\", "/", r"(C:\UDP\OutputFiles)"), 
+                    regexp = "*events.csv|*anaPlus.csv|*oneMinutes.csv|*PC.txt|*rawData.csv", recurse = T) |> 
+             # path_filter(regexp = "-251", ignore.case = T) |> 
+             path_filter(regexp = "Transfers|Transfer|Archive|Archives|LifeCount", invert = T, ignore.case = T)
+```
+
+```{r}
 mobi_anaPlus1(events = file_list |> path_filter(regexp = "*events.csv$", invert = F, ignore.case = T),
-             ana = file_list |> path_filter(regexp = "*anaPlus.csv$", invert = F, ignore.case = T)) |> View()
+              ana = file_list |> path_filter(regexp = "*anaPlus.csv$", invert = F, ignore.case = T),index = 180)  |> View()
+```
+
+```{r}
+(file_list |> 
+   path_filter(regexp = "*events.csv$", invert = F, ignore.case = T))[19] |>
+        purrr::set_names() |>
+        # Consider empty events.csv
+        purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Time = "c", Type = "c",`Col 9` = "c"),col_select = c(Date,Time,Type,`Col 9`)),tibble::tibble()),.progress = TRUE) |>
+        purrr::map(\(df) df |> dplyr::filter(Type == "SENSOR_STARTED (58)"),.progress = TRUE) |>
+        purrr::map(\(df) df |> dplyr::transmute(
+          `Date Time` = lubridate::ymd_hms(stringr::str_c(Date,Time,sep = " ")),
+           Type = Type,
+          `Sensor Serial Number` = `Col 9`),.progress = TRUE)
+```
+
+```{r}
+purrr::map2(
+        # Second List
+        # Import anaPlus.csv or ana.csv
+        (file_list |> 
+          path_filter(regexp = "*anaPlus.csv$", invert = F, ignore.case = T))[19] |>
+          purrr::map(purrr::possibly(\(path) vroom::vroom(path,delim = ",",col_names = T,show_col_types = F,col_types = c(Date = "c", Time = "c", Type = "c"),col_select = c(`Unique Record ID`,Date,Time,Type,ANA,Tr,Rate),n_max = 2),tibble::tibble()),.progress = TRUE),
+        (file_list |> 
+          path_filter(regexp = "*anaPlus.csv$", invert = F, ignore.case = T))[19] |>
+          purrr::map(purrr::possibly(\(path) data.table::fread(path,select = c(1:7),skip = 3,col.names = c("Unique Record ID","Date","Time","Type","ANA","Rate","Tr"),colClasses = c("V2" = "character","V3" = "character","V4" = "character","V5" = "numeric","V6" = "numeric","V7" = "numeric")),tibble::tibble()),.progress = TRUE),
+        dplyr::bind_rows,.progress = TRUE) |> 
+      list_rbind() |> View()
+```
+
+```{r}
+
 ```
 
